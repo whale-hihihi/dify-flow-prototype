@@ -1,0 +1,98 @@
+:root {
+  --sidebar-width: 220px;
+  --topbar-height: 56px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D0D4DE;
+  border-radius: 3px;
+}
+
+/* Ant Design overrides for sidebar-like layout */
+.app-layout {
+  display: flex;
+  height: 100vh;
+}
+
+.app-sidebar {
+  width: var(--sidebar-width);
+  flex-shrink: 0;
+  border-right: 1px solid #E3E6ED;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+}
+
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.app-topbar {
+  height: var(--topbar-height);
+  border-bottom: 1px solid #E3E6ED;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 16px;
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.app-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  background: #F5F6FA;
+}
+
+/* Login page */
+.login-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: #F5F6FA;
+}
+
+.login-card {
+  width: 400px;
+  padding: 32px;
+}
+
+.login-logo {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.login-logo h1 {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.login-logo span {
+  color: #D97706;
+}

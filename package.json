@@ -1,0 +1,16 @@
+{
+  "name": "difyflow",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev --workspace=packages/server",
+    "dev:client": "npm run dev --workspace=packages/client",
+    "dev": "npm run dev:server & npm run dev:client",
+    "build": "npm run build --workspace=packages/server && npm run build --workspace=packages/client",
+    "db:migrate": "npm run db:migrate --workspace=packages/server",
+    "db:seed": "npm run db:seed --workspace=packages/server"
+  }
+}
