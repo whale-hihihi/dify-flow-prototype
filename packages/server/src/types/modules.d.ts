@@ -16,3 +16,12 @@ declare module 'mammoth' {
 }
 
 declare module 'csv-parse';
+
+declare module '@napi-rs/canvas' {
+  export function createCanvas(width: number, height: number): any;
+  export const Path2D: any;
+}
+
+declare module 'pdfjs-dist/legacy/build/pdf.mjs' {
+  export function getDocument(options: { data: Uint8Array }): any;
+}

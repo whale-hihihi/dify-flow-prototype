@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { Upload, Button, Card, Tag, Modal, Input, message, Tabs, Spin, Empty, Dropdown, Select } from 'antd';
 import {
   PlusOutlined, DeleteOutlined, EditOutlined, DownloadOutlined,
-  MoreOutlined, EyeOutlined, SearchOutlined,
+  FolderOutlined, MoreOutlined, EyeOutlined, SearchOutlined,
 } from '@ant-design/icons';
-import { listAssets, uploadAssets, deleteAsset, downloadAsset, getAsset } from '../api/asset.api';
+import { listAssets, uploadAssets, deleteAsset, downloadAsset, getAsset, moveAsset } from '../api/asset.api';
 import { listFolders, createFolder, renameFolder, deleteFolder } from '../api/folder.api';
 import { useWebSocket } from '../hooks/useWebSocket';
 import type { Asset, Folder } from '../types';
@@ -61,6 +61,11 @@ export function AssetsPage() {
   const [renameFolderOpen, setRenameFolderOpen] = useState<Folder | null>(null);
   const [newFolderName, setNewFolderName] = useState('');
   const [renamingValue, setRenamingValue] = useState('');
+
+  // Move to folder state
+  const [moveTarget, setMoveTarget] = useState<Asset | null>(null);
+  const [moveFolderId, setMoveFolderId] = useState<string | null>(null);
+  const [moving, setMoving] = useState(false);
 
   const fetchFolders = useCallback(async () => {
     const data = await listFolders();
@@ -205,6 +210,23 @@ export function AssetsPage() {
         }
       },
     });
+  };
+
+  const handleMoveToFolder = async () => {
+    if (!moveTarget) return;
+    setMoving(true);
+    try {
+      await moveAsset(moveTarget.id, moveFolderId);
+      message.success('移动成功');
+      setMoveTarget(null);
+      setMoveFolderId(null);
+      fetchAssets();
+      fetchFolders();
+    } catch (err: any) {
+      message.error(err.response?.data?.error || '移动失败');
+    } finally {
+      setMoving(false);
+    }
   };
 
   const formatSize = (bytes: number) => {
@@ -372,11 +394,14 @@ export function AssetsPage() {
                         items: [
                           { key: 'preview', icon: <EyeOutlined />, label: '预览', disabled: asset.status !== 'ready' },
                           { key: 'download', icon: <DownloadOutlined />, label: '下载' },
+                          { key: 'move', icon: <FolderOutlined />, label: '移入文件夹' },
+                          { type: 'divider' as const },
                           { key: 'delete', icon: <DeleteOutlined />, label: '删除', danger: true },
                         ],
                         onClick: ({ key }) => {
                           if (key === 'preview') handlePreview(asset);
                           else if (key === 'download') handleDownload(asset);
+                          else if (key === 'move') { setMoveTarget(asset); setMoveFolderId(asset.folderId || null); }
                           else if (key === 'delete') confirmDeleteAsset(asset);
                         },
                       }}
@@ -433,7 +458,7 @@ export function AssetsPage() {
       >
         {previewLoading ? (
           <div style={{ textAlign: 'center', padding: '40px 0' }}><Spin tip="加载中..." /></div>
-        ) : previewAsset?.parsedText ? (
+        ) : previewAsset && previewAsset.parsedText != null && previewAsset.parsedText !== '' ? (
           <pre style={{
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
@@ -483,6 +508,51 @@ export function AssetsPage() {
           onPressEnter={handleRenameFolder}
           autoFocus
         />
+      </Modal>
+
+      {/* Move to Folder Modal */}
+      <Modal
+        title={`移入文件夹 — ${moveTarget?.originalName || ''}`}
+        open={!!moveTarget}
+        onOk={handleMoveToFolder}
+        onCancel={() => { setMoveTarget(null); setMoveFolderId(null); }}
+        okText="移动"
+        confirmLoading={moving}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+          <div
+            onClick={() => setMoveFolderId(null)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
+              border: !moveFolderId ? '1.5px solid #D97706' : '1px solid #E3E6ED',
+              background: !moveFolderId ? 'rgba(217,119,6,0.05)' : 'transparent',
+            }}
+          >
+            <span>📁</span>
+            <span style={{ fontSize: 13, fontWeight: !moveFolderId ? 600 : 400, color: !moveFolderId ? '#D97706' : '#5F6B80' }}>
+              全部文件（不归类）
+            </span>
+          </div>
+          {folders.filter((f) => !f.isDefault).map((folder) => (
+            <div
+              key={folder.id}
+              onClick={() => setMoveFolderId(folder.id)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
+                border: moveFolderId === folder.id ? '1.5px solid #D97706' : '1px solid #E3E6ED',
+                background: moveFolderId === folder.id ? 'rgba(217,119,6,0.05)' : 'transparent',
+              }}
+            >
+              <span>📂</span>
+              <span style={{ fontSize: 13, fontWeight: moveFolderId === folder.id ? 600 : 400, color: moveFolderId === folder.id ? '#D97706' : '#5F6B80' }}>
+                {folder.name}
+              </span>
+              <span style={{ marginLeft: 'auto', fontSize: 11, color: '#9CA3B8' }}>{folder.assetCount} 个文件</span>
+            </div>
+          ))}
+        </div>
       </Modal>
     </div>
   );

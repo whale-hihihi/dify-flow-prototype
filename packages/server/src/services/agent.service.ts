@@ -1,6 +1,6 @@
 import { prisma } from '../config/database';
 import { encrypt, decrypt } from '../utils/crypto';
-import { testDifyConnection } from './dify-client.service';
+import { testDifyConnection, chatWithDifyAgent } from './dify-client.service';
 
 export async function listAgents(userId: string) {
   return prisma.agent.findMany({
@@ -82,11 +82,34 @@ export async function testAgentConnection(userId: string, agentId: string) {
   const apiKey = decrypt(agent.apiKeyEncrypted, agent.apiKeyIv);
   const result = await testDifyConnection(agent.endpoint, apiKey);
 
-  // Update online status
   await prisma.agent.update({
     where: { id: agentId },
     data: { isOnline: result.success },
   });
+
+  return result;
+}
+
+export async function checkAgentsOnline(userId: string) {
+  const agents = await prisma.agent.findMany({ where: { userId } });
+  await Promise.allSettled(
+    agents.map(async (agent) => {
+      const apiKey = decrypt(agent.apiKeyEncrypted, agent.apiKeyIv);
+      const result = await testDifyConnection(agent.endpoint, apiKey);
+      await prisma.agent.update({ where: { id: agent.id }, data: { isOnline: result.success } });
+    }),
+  );
+  return prisma.agent.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
+}
+
+export async function chatTest(userId: string, agentId: string, message: string) {
+  const agent = await prisma.agent.findFirst({ where: { id: agentId, userId } });
+  if (!agent) throw new Error('Agent not found');
+
+  const apiKey = decrypt(agent.apiKeyEncrypted, agent.apiKeyIv);
+  const result = await chatWithDifyAgent(agent.endpoint, apiKey, message, agent.mode);
+
+  await prisma.agent.update({ where: { id: agentId }, data: { callCount: { increment: 1 } } });
 
   return result;
 }

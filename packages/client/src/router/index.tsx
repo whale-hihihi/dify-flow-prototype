@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppLayout } from '../layouts/AppLayout';
 import { LoginPage } from '../pages/LoginPage';
 import { AssetsPage } from '../pages/AssetsPage';
+import { TasksPage } from '../pages/TasksPage';
 import { AgentsPage } from '../pages/AgentsPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { useAuthStore } from '../stores/authStore';
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/assets" replace /> },
       { path: 'assets', element: <AssetsPage /> },
+      { path: 'tasks', element: <TasksPage /> },
       { path: 'agents', element: <AgentsPage /> },
       { path: 'settings', element: <SettingsPage /> },
     ],

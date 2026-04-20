@@ -112,10 +112,11 @@ export async function deleteAsset(userId: string, assetId: string) {
   const asset = await prisma.asset.findFirst({ where: { id: assetId, userId } });
   if (!asset) throw new Error('Asset not found');
 
-  // Delete file from disk（path.resolve 自动适配当前系统路径分隔符）
-  const diskPath = path.resolve(asset.filePath);
-  if (fs.existsSync(diskPath)) {
-    fs.unlinkSync(diskPath);
+  if (asset.filePath) {
+    const diskPath = path.resolve(asset.filePath);
+    if (fs.existsSync(diskPath) && fs.statSync(diskPath).isFile()) {
+      fs.unlinkSync(diskPath);
+    }
   }
 
   return prisma.asset.delete({ where: { id: assetId } });

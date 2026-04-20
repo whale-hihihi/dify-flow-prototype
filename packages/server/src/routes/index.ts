@@ -5,6 +5,7 @@ import agentRoutes from './agent.routes';
 import assetRoutes from './asset.routes';
 import folderRoutes from './folder.routes';
 import searchRoutes from './search.routes';
+import taskRoutes from './task.routes';
 
 const router = Router();
 
@@ -14,5 +15,6 @@ router.use('/agents', agentRoutes);
 router.use('/assets', assetRoutes);
 router.use('/folders', folderRoutes);
 router.use('/search', searchRoutes);
+router.use('/tasks', taskRoutes);
 
 export default router;
