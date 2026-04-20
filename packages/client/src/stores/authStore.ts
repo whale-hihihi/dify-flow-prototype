@@ -29,3 +29,17 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   setUser: (user) => set({ user }),
 }));
+
+// App startup: restore user from token
+export async function bootstrapAuth() {
+  const token = localStorage.getItem('token');
+  if (!token) return;
+  try {
+    const { getMe } = await import('../api/auth.api');
+    const user = await getMe();
+    useAuthStore.setState({ user, isAuthenticated: true });
+  } catch {
+    localStorage.removeItem('token');
+    useAuthStore.setState({ token: null, user: null, isAuthenticated: false });
+  }
+}

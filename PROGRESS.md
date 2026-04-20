@@ -137,10 +137,10 @@ DifyFlow/
 | 模块 | 计划书章节 | 原型文件 | 状态 | 完成日期 |
 |------|-----------|---------|------|---------|
 | M1 资产管理 | 2.2.1 | assets view | 已完成 | 2026-04-14 |
-| M2 任务管理 | 2.2.2 | tasks view | 待开发 | - |
-| M3 Dify 智能体管理 | 2.2.3 | agents view | 已完成(基础CRUD) | 2026-04-13 |
+| M2 任务管理 | 2.2.2 | tasks view | 已完成(即时任务) | 2026-04-20 |
+| M3 Dify 智能体管理 | 2.2.3 | agents view | 已完成 | 2026-04-20 |
 | M4 智能体生成器 | 2.2.4 | generator view | 待开发 | - |
-| M5 个人设置 | 2.2.5 | settings view | 待开发 | - |
+| M5 个人设置 | 2.2.5 | settings view | 已完成 | 2026-04-20 |
 | M6 通用支撑 | 2.2.6 | login page | 已完成 | 2026-04-13 |
 
 ---
@@ -214,4 +214,87 @@ DifyFlow/
 **遗留问题：**
 - OCR 对纯图片 PDF 仍有少量识别误差（英文字母混淆），属 tesseract.js 引擎限制
 - tesseract.js 首次使用需下载约 20MB 语言包，之后缓存
+
+---
+
+### 2026-04-20 — M5 个人设置模块
+
+**实现内容：**
+- Schema 扩展：User 模型新增 `defaultAgentId` 字段 + Agent 反向关联
+- RBAC 中间件：`requireRole(...roles)` 角色校验，admin-only 管理接口
+- 团队管理后端：listUsers / createUser / updateUserRole / deleteUser / resetUserPassword
+- 个人信息增强：默认智能体偏好（Select 下拉）
+- 团队管理前端：成员列表（头像+角色标签）、邀请成员 Modal、角色切换 Dropdown、重置密码 Modal、移除成员 Popconfirm
+- 通知偏好：任务完成/失败/Dify 断连三个 Switch，localStorage 持久化
+- 启动恢复：`bootstrapAuth()` 刷新页面后自动恢复用户信息到 store
+- 种子数据：添加 liting(admin) 和 wanghao(member) 测试用户
+
+**修改文件：**
+- 修改：`packages/server/prisma/schema.prisma`（User + defaultAgentId，Agent 反向关联）
+- 修改：`packages/server/prisma/seed.ts`（多用户种子数据）
+- 修改：`packages/server/src/middleware/auth.ts`（新增 requireRole）
+- 修改：`packages/server/src/services/auth.service.ts`（新增 5 个用户管理函数）
+- 修改：`packages/server/src/controllers/auth.controller.ts`（新增 5 个管理员控制器）
+- 修改：`packages/server/src/routes/auth.routes.ts`（5 条 admin-only 路由）
+- 修改：`packages/client/src/types/index.ts`（User 加 defaultAgentId）
+- 修改：`packages/client/src/api/auth.api.ts`（新增 5 个团队管理 API）
+- 修改：`packages/client/src/pages/SettingsPage.tsx`（四面板重构）
+- 修改：`packages/client/src/stores/authStore.ts`（新增 bootstrapAuth）
+- 修改：`packages/client/src/main.tsx`（启动时调用 bootstrapAuth）
+
+**与原型一致性：** 四面板布局与原型一致，团队管理成员列表还原原型头像+角色标签设计
+
+---
+
+### 2026-04-20 — M3 Dify 智能体管理完善
+
+**实现内容：**
+- 连接状态栏：显示 Dify 服务连接状态、URL、已接入智能体数量
+- 批量在线状态探测：`/agents/check-online` 接口，并行探测所有智能体，更新 isOnline 字段
+- I/O 测试：`/agents/:id/chat` 接口，发送自定义文本查看智能体返回结果
+- 前端卡片增强：智能体图标（emoji 轮换）、在线状态脉冲动画、刷新状态按钮
+- I/O 测试 Modal：输入测试文本，展示智能体返回内容
+- 编辑 Modal 布局优化：名称+模式并排显示
+
+**修改文件：**
+- 修改：`packages/server/src/services/dify-client.service.ts`（新增 chatWithDifyAgent）
+- 修改：`packages/server/src/services/agent.service.ts`（新增 checkAgentsOnline、chatTest）
+- 修改：`packages/server/src/controllers/agent.controller.ts`（新增 checkOnline、chatTest）
+- 修改：`packages/server/src/routes/agent.routes.ts`（新增 2 条路由）
+- 修改：`packages/client/src/api/agent.api.ts`（新增 checkAgentsOnline、chatTest）
+- 修改：`packages/client/src/pages/AgentsPage.tsx`（状态栏 + I/O 测试 + 卡片增强）
+
+**与原型一致性：** 状态栏还原原型设计，卡片图标/在线标签/操作按钮对齐原型布局
+
+---
+
+### 2026-04-20 — M2 任务管理模块（即时任务）
+
+**实现内容：**
+- Schema：Task + TaskItem 数据模型，任务状态机 pending→running→completed/failed/canceled
+- 后端：createTask、listTasks、retryTask、cancelTask、deleteTask
+- 任务执行器：逐文件调用 Dify API，结果自动存为新资产（关联源文件）
+- WebSocket 实时推送任务进度到前端
+- 前端：任务列表（筛选标签页：全部/运行中/已完成/定时）
+- 任务卡片：状态圆点 + 进度条 + 操作按钮（查看结果/重试/暂停/删除）
+- 新建任务弹窗：名称、类型选择、智能体下拉、文件多选
+- 侧边栏新增"任务管理"导航项
+
+**修改文件：**
+- 修改：`packages/server/prisma/schema.prisma`（新增 Task、TaskItem 模型 + 关联）
+- 新增：`packages/server/src/services/task.service.ts`
+- 新增：`packages/server/src/controllers/task.controller.ts`
+- 新增：`packages/server/src/routes/task.routes.ts`
+- 修改：`packages/server/src/routes/index.ts`（注册 /tasks）
+- 修改：`packages/client/src/types/index.ts`（新增 Task、TaskItem 类型）
+- 新增：`packages/client/src/api/task.api.ts`
+- 新增：`packages/client/src/pages/TasksPage.tsx`
+- 修改：`packages/client/src/router/index.tsx`（新增 /tasks 路由）
+- 修改：`packages/client/src/layouts/AppLayout.tsx`（侧边栏加任务管理）
+
+**与原型一致性：** 任务卡片横向布局、状态圆点颜色、进度条、筛选标签页均对齐原型设计
+
+**遗留问题：**
+- 定时任务（node-cron 调度）待实现
+- 任务执行结果"查看结果"按钮跳转待完善
 

@@ -3,6 +3,7 @@ export interface User {
   username: string;
   email: string;
   role: string;
+  defaultAgentId?: string | null;
   createdAt?: string;
 }
 
@@ -67,4 +68,32 @@ export interface PaginatedResponse<T> {
 
 export interface SearchResult extends Asset {
   snippet?: string;
+}
+
+export interface TaskItem {
+  id: string;
+  sourceAssetId: string;
+  resultAssetId?: string | null;
+  status: string;
+  progress: number;
+  result?: string | null;
+  error?: string | null;
+  sourceAsset?: Asset;
+}
+
+export interface Task {
+  id: string;
+  name: string;
+  type: 'immediate' | 'scheduled';
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'canceled';
+  agentId: string;
+  totalFiles: number;
+  completedFiles: number;
+  prompt?: string | null;
+  cronExpression?: string | null;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+  agent?: { id: string; name: string };
+  items?: TaskItem[];
 }

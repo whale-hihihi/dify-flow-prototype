@@ -6,6 +6,7 @@ import {
   RobotOutlined,
   SettingOutlined,
   ThunderboltOutlined,
+  UnorderedListOutlined,
 } from '@ant-design/icons';
 import '../styles/global.css';
 
@@ -14,6 +15,11 @@ const menuItems: MenuProps['items'] = [
     key: '/assets',
     icon: <FolderOutlined />,
     label: '资产管理',
+  },
+  {
+    key: '/tasks',
+    icon: <UnorderedListOutlined />,
+    label: '任务管理',
   },
   {
     key: '/agents',
@@ -29,6 +35,7 @@ const menuItems: MenuProps['items'] = [
 
 const viewTitles: Record<string, string> = {
   '/assets': '资产管理',
+  '/tasks': '任务管理',
   '/agents': 'Dify 智能体管理',
   '/settings': '个人设置',
 };
