@@ -31,6 +31,7 @@ DifyFlow/
 │   │   │   │   ├── dify-config.api.ts
 │   │   │   │   ├── folder.api.ts
 │   │   │   │   └── search.api.ts
+	│   │   │   │   └── task.api.ts
 │   │   │   ├── pages/            # 页面组件
 │   │   │   │   ├── AgentsPage.tsx
 │   │   │   │   ├── AssetsPage.tsx
