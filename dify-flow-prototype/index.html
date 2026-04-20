@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DifyFlow — 智能文本处理平台</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <h1><div class="logo-icon">⚡</div> Dify<span>Flow</span></h1>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-item active" data-view="assets">
+          <span class="nav-icon">📦</span> 资产管理
+        </div>
+        <div class="nav-item" data-view="tasks">
+          <span class="nav-icon">📋</span> 任务管理
+          <span class="nav-badge">3</span>
+        </div>
+        <div class="nav-item" data-view="agents">
+          <span class="nav-icon">🤖</span> Dify 智能体
+        </div>
+        <div class="nav-item" data-view="generator">
+          <span class="nav-icon">✨</span> 智能体生成器
+        </div>
+        <div style="flex:1"></div>
+        <div class="nav-item" data-view="settings">
+          <span class="nav-icon">⚙️</span> 个人设置
+        </div>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-card">
+          <div class="user-avatar">张</div>
+          <div class="user-info">
+            <div class="user-name">张明</div>
+            <div class="user-role">管理员</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main-content">
+      <div class="topbar">
+        <div class="topbar-title" id="topbar-title">资产管理</div>
+        <div class="search-bar">
+          <span class="search-icon">🔍</span>
+          <input type="text" placeholder="搜索文件、任务、智能体...">
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-btn" title="通知">🔔</button>
+          <button class="icon-btn" title="帮助">❓</button>
+        </div>
+      </div>
+
+      <div class="content-area">
+
+        <!-- ===== ASSETS ===== -->
+        <div class="view active" id="view-assets">
+          <div class="asset-layout">
+            <div class="folder-tree">
+              <div class="folder-tree-title">
+                文件夹
+                <button class="tree-add-btn" onclick="openModal('folder-modal')" title="新建文件夹">+</button>
+              </div>
+              <div class="tree-item active" onclick="selectFolder(this)">
+                <span class="icon">📁</span> 全部文件
+              </div>
+              <div class="tree-item" onclick="selectFolder(this)">
+                <span class="icon">📂</span>
+                <span class="tree-label">项目文档</span>
+                <button class="tree-action" onclick="event.stopPropagation();showFolderMenu(this)">⋮</button>
+              </div>
+              <div class="tree-item" onclick="selectFolder(this)">
+                <span class="icon">📂</span>
+                <span class="tree-label">会议记录</span>
+                <button class="tree-action" onclick="event.stopPropagation();showFolderMenu(this)">⋮</button>
+              </div>
+              <div class="tree-item" onclick="selectFolder(this)">
+                <span class="icon">📂</span>
+                <span class="tree-label">研究资料</span>
+                <button class="tree-action" onclick="event.stopPropagation();showFolderMenu(this)">⋮</button>
+              </div>
+              <div class="tree-item" onclick="selectFolder(this)">
+                <span class="icon">📂</span>
+                <span class="tree-label">任务输出</span>
+                <button class="tree-action" onclick="event.stopPropagation();showFolderMenu(this)">⋮</button>
+              </div>
+            </div>
+            <div class="asset-main">
+              <div class="asset-toolbar">
+                <div class="tabs">
+                  <div class="tab active">全部</div>
+                  <div class="tab">已解析</div>
+                  <div class="tab">解析中</div>
+                  <div class="tab">任务产出</div>
+                </div>
+                <div style="flex:1"></div>
+                <button class="btn btn-secondary">筛选 ▾</button>
+                <button class="btn btn-primary">+ 上传文件</button>
+              </div>
+              <div class="upload-zone" id="upload-zone">
+                <div class="upload-icon">☁️</div>
+                <div class="upload-text">拖拽文件到此处，或 <strong>点击上传</strong></div>
+                <div class="upload-hint">支持 PDF、Word、Excel、TXT、Markdown、CSV</div>
+              </div>
+              <div class="card-grid stagger">
+                <div class="card file-card">
+                  <div class="file-icon file-icon-pdf">📄</div>
+                  <div class="file-info">
+                    <div class="file-name">2024年度报告.pdf</div>
+                    <div class="file-meta"><span>2.4 MB</span><span>3 分钟前</span></div>
+                  </div>
+                  <span class="badge badge-success"><span class="badge-dot"></span>已解析</span>
+                  <div class="file-actions"><button class="icon-btn">⋮</button></div>
+                </div>
+                <div class="card file-card">
+                  <div class="file-icon file-icon-doc">📝</div>
+                  <div class="file-info">
+                    <div class="file-name">产品需求文档_v3.docx</div>
+                    <div class="file-meta"><span>856 KB</span><span>15 分钟前</span></div>
+                  </div>
+                  <span class="badge badge-success"><span class="badge-dot"></span>已解析</span>
+                  <div class="file-actions"><button class="icon-btn">⋮</button></div>
+                </div>
+                <div class="card file-card">
+                  <div class="file-icon file-icon-xls">📊</div>
+                  <div class="file-info">
+                    <div class="file-name">Q4_销售数据.xlsx</div>
+                    <div class="file-meta"><span>1.8 MB</span><span>1 小时前</span></div>
+                  </div>
+                  <span class="badge badge-warning"><span class="badge-dot"></span>解析中</span>
+                  <div class="file-actions"><button class="icon-btn">⋮</button></div>
+                </div>
+                <div class="card file-card">
+                  <div class="file-icon file-icon-md">📑</div>
+                  <div class="file-info">
+                    <div class="file-name">技术架构设计.md</div>
+                    <div class="file-meta"><span>42 KB</span><span>2 小时前</span></div>
+                  </div>
+                  <span class="badge badge-success"><span class="badge-dot"></span>已解析</span>
+                  <div class="file-actions"><button class="icon-btn">⋮</button></div>
+                </div>
+                <div class="card file-card">
+                  <div class="file-icon file-icon-txt">📃</div>
+                  <div class="file-info">
+                    <div class="file-name">用户访谈记录.txt</div>
+                    <div class="file-meta"><span>128 KB</span><span>昨天</span></div>
+                  </div>
+                  <span class="badge badge-success"><span class="badge-dot"></span>已解析</span>
+                  <div class="file-actions"><button class="icon-btn">⋮</button></div>
+                </div>
+                <div class="card file-card">
+                  <div class="file-icon file-icon-pdf">📄</div>
+                  <div class="file-info">
+                    <div class="file-name">竞品分析报告_摘要.pdf</div>
+                    <div class="file-meta"><span>320 KB</span><span>昨天</span></div>
+                  </div>
+                  <span class="badge badge-info">任务产出</span>
+                  <div class="file-actions"><button class="icon-btn">⋮</button></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== TASKS ===== -->
+        <div class="view" id="view-tasks">
+          <div class="section-header">
+            <h2>任务管理</h2>
+            <div class="section-actions">
+              <div class="tabs">
+                <div class="tab active">全部</div>
+                <div class="tab">运行中</div>
+                <div class="tab">已完成</div>
+                <div class="tab">定时</div>
+              </div>
+              <button class="btn btn-primary" onclick="openModal('task-modal')">+ 新建任务</button>
+            </div>
+          </div>
+          <div class="task-list stagger">
+            <div class="card task-card">
+              <div class="task-status-indicator" style="background:var(--accent);box-shadow:0 0 6px var(--accent-glow)"></div>
+              <div class="task-info">
+                <div class="task-name">批量摘要 — 2024年度报告</div>
+                <div class="task-detail">
+                  <span>🤖 文档摘要专家</span>
+                  <span>📄 1 个文件</span>
+                  <span>🕐 10 分钟前开始</span>
+                </div>
+              </div>
+              <div class="task-progress" style="width:140px">
+                <div class="task-progress-bar progress-running" style="width:65%"></div>
+              </div>
+              <span style="font-size:12px;color:var(--accent);font-weight:600;width:36px">65%</span>
+              <button class="btn btn-ghost" style="font-size:12px">暂停</button>
+            </div>
+            <div class="card task-card">
+              <div class="task-status-indicator" style="background:var(--success)"></div>
+              <div class="task-info">
+                <div class="task-name">情感分析 — 用户访谈记录</div>
+                <div class="task-detail">
+                  <span>🤖 情感分析助手</span>
+                  <span>📄 1 个文件</span>
+                  <span>🕐 2 小时前完成</span>
+                </div>
+              </div>
+              <div class="task-progress" style="width:140px">
+                <div class="task-progress-bar progress-success" style="width:100%"></div>
+              </div>
+              <span class="badge badge-success">完成</span>
+              <button class="btn btn-secondary" style="font-size:12px">查看结果</button>
+            </div>
+            <div class="card task-card">
+              <div class="task-status-indicator" style="background:var(--error)"></div>
+              <div class="task-info">
+                <div class="task-name">翻译 — 技术架构文档</div>
+                <div class="task-detail">
+                  <span>🤖 中英翻译器</span>
+                  <span>📄 1 个文件</span>
+                  <span>🕐 昨天 14:32</span>
+                </div>
+              </div>
+              <span class="badge badge-error">失败</span>
+              <button class="btn btn-ghost" style="font-size:12px">重试</button>
+              <button class="btn btn-ghost" style="font-size:12px">日志</button>
+            </div>
+            <div class="card task-card" style="border-left:3px solid var(--info)">
+              <div class="task-status-indicator" style="background:var(--info)"></div>
+              <div class="task-info">
+                <div class="task-name">⏰ 每日新闻摘要</div>
+                <div class="task-detail">
+                  <span>🤖 新闻摘要生成器</span>
+                  <span>📄 自动抓取</span>
+                  <span>⏰ 每天 08:00</span>
+                </div>
+              </div>
+              <span class="badge badge-info">定时任务</span>
+              <button class="btn btn-ghost" style="font-size:12px">编辑</button>
+              <button class="btn btn-danger" style="font-size:12px">取消</button>
+            </div>
+            <div class="card task-card" style="border-left:3px solid var(--info)">
+              <div class="task-status-indicator" style="background:var(--info)"></div>
+              <div class="task-info">
+                <div class="task-name">⏰ 周报数据汇总</div>
+                <div class="task-detail">
+                  <span>🤖 数据分析专家</span>
+                  <span>📄 Q4_销售数据.xlsx</span>
+                  <span>⏰ 每周一 09:00</span>
+                </div>
+              </div>
+              <span class="badge badge-info">定时任务</span>
+              <button class="btn btn-ghost" style="font-size:12px">编辑</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== AGENTS ===== -->
+        <div class="view" id="view-agents">
+          <div class="section-header">
+            <h2>Dify 智能体管理</h2>
+            <div class="section-actions">
+              <a class="btn btn-secondary" href="http://localhost/apps" target="_blank" style="text-decoration:none">🔗 进入 Dify 新建或修改智能体</a>
+              <button class="btn btn-secondary" onclick="openModal('agent-modal')">+ 添加 Dify 智能体</button>
+              <button class="btn btn-primary" onclick="switchView('generator')">✨ 智能生成</button>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:12px;color:var(--text-secondary)">
+            <span class="connection-dot online"></span> Dify 服务已连接 — http://localhost/v1
+            <span style="margin-left:8px;color:var(--border)">|</span>
+            <span style="margin-left:8px">已接入 4 个智能体</span>
+          </div>
+          <div class="card-grid stagger">
+            <div class="card">
+              <div class="agent-card-inner">
+                <div class="agent-header">
+                  <div class="agent-icon">📝</div>
+                  <span class="badge badge-success"><span class="badge-dot"></span> 在线</span>
+                </div>
+                <div class="agent-name">文档摘要专家</div>
+                <div class="agent-desc">自动提取文档核心内容，生成结构化摘要。支持中英文文档。</div>
+                <div class="agent-meta">
+                  <div class="agent-meta-item">💬 Chat</div>
+                  <div class="agent-meta-item">📊 128 次调用</div>
+                </div>
+                <div class="agent-actions">
+                  <button class="btn btn-secondary" style="font-size:11px;padding:6px 12px" onclick="openModal('test-modal')">连通测试</button>
+                  <button class="btn btn-secondary" style="font-size:11px;padding:6px 12px">I/O 测试</button>
+                  <button class="btn btn-ghost" style="font-size:11px;padding:6px 12px" onclick="openModal('agent-edit-modal')">编辑</button>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="agent-card-inner">
+                <div class="agent-header">
+                  <div class="agent-icon">🎯</div>
+                  <span class="badge badge-success"><span class="badge-dot"></span> 在线</span>
+                </div>
+                <div class="agent-name">情感分析助手</div>
+                <div class="agent-desc">多维度情感分析，输出情感倾向、关键词和情绪评分。</div>
+                <div class="agent-meta">
+                  <div class="agent-meta-item">💬 Chat</div>
+                  <div class="agent-meta-item">📊 56 次调用</div>
+                </div>
+                <div class="agent-actions">
+                  <button class="btn btn-secondary" style="font-size:11px;padding:6px 12px">连通测试</button>
+                  <button class="btn btn-secondary" style="font-size:11px;padding:6px 12px">I/O 测试</button>
+                  <button class="btn btn-ghost" style="font-size:11px;padding:6px 12px" onclick="openModal('agent-edit-modal')">编辑</button>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="agent-card-inner">
+                <div class="agent-header">
+                  <div class="agent-icon">🌐</div>
+                  <span class="badge badge-success"><span class="badge-dot"></span> 在线</span>
+                </div>
+                <div class="agent-name">中英翻译器</div>
+                <div class="agent-desc">高质量中英互译，保留专业术语准确性，支持领域自适应。</div>
+                <div class="agent-meta">
+                  <div class="agent-meta-item">🔧 Completion</div>
+                  <div class="agent-meta-item">📊 234 次调用</div>
+                </div>
+                <div class="agent-actions">
+                  <button class="btn btn-secondary" style="font-size:11px;padding:6px 12px">连通测试</button>
+                  <button class="btn btn-secondary" style="font-size:11px;padding:6px 12px">I/O 测试</button>
+                  <button class="btn btn-ghost" style="font-size:11px;padding:6px 12px" onclick="openModal('agent-edit-modal')">编辑</button>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="agent-card-inner">
+                <div class="agent-header">
+                  <div class="agent-icon">📊</div>
+                  <span class="badge badge-success"><span class="badge-dot"></span> 在线</span>
+                </div>
+                <div class="agent-name">数据分析专家</div>
+                <div class="agent-desc">分析 CSV/Excel 数据，生成统计摘要、趋势分析和可视化建议。</div>
+                <div class="agent-meta">
+                  <div class="agent-meta-item">🔄 Workflow</div>
+                  <div class="agent-meta-item">📊 42 次调用</div>
+                </div>
+                <div class="agent-actions">
+                  <button class="btn btn-secondary" style="font-size:11px;padding:6px 12px">连通测试</button>
+                  <button class="btn btn-secondary" style="font-size:11px;padding:6px 12px">I/O 测试</button>
+                  <button class="btn btn-ghost" style="font-size:11px;padding:6px 12px" onclick="openModal('agent-edit-modal')">编辑</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== GENERATOR ===== -->
+        <div class="view" id="view-generator">
+          <div class="section-header">
+            <h2>Dify 智能体生成器</h2>
+            <div class="section-actions">
+              <div class="gen-steps" id="gen-steps">
+                <div class="gen-step-dot active"></div>
+                <div class="gen-step-dot"></div>
+                <div class="gen-step-dot"></div>
+                <div class="gen-step-dot"></div>
+                <div class="gen-step-dot"></div>
+              </div>
+              <button class="btn btn-secondary" onclick="resetGenerator()">🔄 重新开始</button>
+            </div>
+          </div>
+          <div class="generator-layout">
+            <div class="gen-chat-panel">
+              <div class="gen-chat-header">
+                <h3>💬 需求对话</h3>
+                <span class="badge badge-warning">AI 引导</span>
+              </div>
+              <div class="gen-chat-messages" id="gen-messages">
+                <!-- Messages populated by JS -->
+              </div>
+              <div class="gen-chat-input" id="gen-input-area">
+                <input type="text" id="gen-user-input" placeholder="输入你的回答..." onkeydown="if(event.key==='Enter')handleGenInput()">
+                <button class="btn btn-primary" onclick="handleGenInput()">发送</button>
+              </div>
+            </div>
+            <div class="gen-yaml-panel">
+              <div class="gen-yaml-header">
+                <span>📄 YAML 预览</span>
+                <div style="display:flex;gap:6px">
+                  <button class="btn btn-secondary" style="font-size:10px;padding:4px 10px">复制</button>
+                  <button class="btn btn-primary" style="font-size:10px;padding:4px 10px">下载</button>
+                </div>
+              </div>
+              <div class="gen-yaml-output" id="gen-yaml-output">
+                <div style="color:#6C7086;text-align:center;padding-top:60px">
+                  <div style="font-size:28px;margin-bottom:10px;opacity:0.4">✨</div>
+                  <div style="font-size:12px">完成对话后将在此生成 YAML</div>
+                </div>
+              </div>
+              <div class="gen-yaml-footer">
+                <span style="font-size:11px;color:var(--text-tertiary)">生成后可导入 Dify DSL</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== SETTINGS ===== -->
+        <div class="view" id="view-settings">
+          <div class="section-header"><h2>个人设置</h2></div>
+          <div class="settings-layout">
+            <div class="settings-section">
+              <h3>🔗 Dify 连接配置</h3>
+              <p>配置本地部署的 Dify 服务地址</p>
+              <div class="form-group">
+                <label class="form-label">Dify API 地址</label>
+                <input class="form-input" type="text" value="http://localhost/v1" placeholder="http://your-dify-host/v1">
+              </div>
+              <div class="form-group">
+                <label class="form-label">连接状态</label>
+                <div style="padding:9px 0;display:flex;align-items:center;gap:8px">
+                  <span class="connection-dot online"></span>
+                  <span style="font-size:13px;color:var(--success)">已连接</span>
+                  <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px;margin-left:auto">测试连接</button>
+                </div>
+              </div>
+              <button class="btn btn-primary" style="margin-top:8px">保存配置</button>
+            </div>
+            <div class="settings-section">
+              <h3>👤 个人信息</h3>
+              <p>管理你的账户信息和偏好</p>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">用户名</label>
+                  <input class="form-input" type="text" value="张明">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">邮箱</label>
+                  <input class="form-input" type="email" value="zhangming@team.com">
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">默认智能体</label>
+                <input class="form-input" type="text" value="文档摘要专家" placeholder="新建任务时的默认智能体">
+              </div>
+            </div>
+            <div class="settings-section">
+              <h3>👥 团队管理</h3>
+              <p>管理团队成员和角色权限</p>
+              <div class="team-list">
+                <div class="team-member">
+                  <div class="member-avatar" style="background:linear-gradient(135deg,#6366F1,#8B5CF6)">张</div>
+                  <div class="member-info"><div class="member-name">张明</div><div class="member-email">zhangming@team.com</div></div>
+                  <span class="badge badge-warning">所有者</span>
+                </div>
+                <div class="team-member">
+                  <div class="member-avatar" style="background:linear-gradient(135deg,#3B82F6,#2563EB)">李</div>
+                  <div class="member-info"><div class="member-name">李婷</div><div class="member-email">liting@team.com</div></div>
+                  <span class="badge badge-info">管理员</span>
+                </div>
+                <div class="team-member">
+                  <div class="member-avatar" style="background:linear-gradient(135deg,#10B981,#059669)">王</div>
+                  <div class="member-info"><div class="member-name">王浩</div><div class="member-email">wanghao@team.com</div></div>
+                  <span class="badge" style="background:var(--bg-elevated);color:var(--text-secondary)">成员</span>
+                </div>
+              </div>
+              <button class="btn btn-secondary" style="margin-top:12px">+ 邀请成员</button>
+            </div>
+            <div class="settings-section">
+              <h3>🔔 通知偏好</h3>
+              <p>配置任务完成、失败等事件的通知方式</p>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer"><input type="checkbox" checked> 任务完成时通知</label>
+                <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer"><input type="checkbox" checked> 任务失败时通知</label>
+                <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer"><input type="checkbox"> Dify 服务断开时通知</label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Task Modal -->
+  <div class="modal-overlay" id="task-modal">
+    <div class="modal">
+      <div class="modal-header"><h3>新建任务</h3><button class="modal-close" onclick="closeModal('task-modal')">✕</button></div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">任务名称</label>
+          <input class="form-input" placeholder="输入任务名称...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">任务类型</label>
+          <div class="tabs" style="display:inline-flex" id="task-type-tabs">
+            <div class="tab active" data-type="instant">⚡ 即时任务</div>
+            <div class="tab" data-type="scheduled">⏰ 定时任务</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">选择智能体</label>
+          <select class="form-input" style="cursor:pointer">
+            <option>📝 文档摘要专家</option>
+            <option>🎯 情感分析助手</option>
+            <option>🌐 中英翻译器</option>
+            <option>📊 数据分析专家</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">选择文件</label>
+          <div style="border:1px dashed var(--border-light);border-radius:var(--radius);padding:16px;text-align:center;color:var(--text-secondary);font-size:13px;cursor:pointer">点击选择已上传的文件</div>
+        </div>
+        <div class="form-group" id="schedule-group" style="display:none">
+          <label class="form-label">触发时间</label>
+          <input class="form-input" type="datetime-local">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('task-modal')">取消</button>
+        <button class="btn btn-primary">创建任务</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Agent Edit Modal (with API Key & ID) -->
+  <div class="modal-overlay" id="agent-edit-modal">
+    <div class="modal" style="width:560px">
+      <div class="modal-header"><h3>编辑智能体</h3><button class="modal-close" onclick="closeModal('agent-edit-modal')">✕</button></div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">智能体名称</label>
+            <input class="form-input" type="text" value="文档摘要专家">
+          </div>
+          <div class="form-group">
+            <label class="form-label">模式</label>
+            <select class="form-input" style="cursor:pointer">
+              <option selected>💬 Chat</option>
+              <option>🔧 Completion</option>
+              <option>🔄 Workflow</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">描述</label>
+          <input class="form-input" type="text" value="自动提取文档核心内容，生成结构化摘要。">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Dify App ID</label>
+          <input class="form-input" type="text" value="a7f3e2b1-4c5d-6e8f-9a0b-1c2d3e4f5a6b" placeholder="从 Dify 获取">
+        </div>
+        <div class="form-group">
+          <label class="form-label">API Key</label>
+          <div style="display:flex;gap:8px">
+            <input class="form-input" type="password" value="app-xxxxxxxxxxxxxxxxxxxxxx" style="flex:1" id="api-key-input">
+            <button class="btn btn-secondary" style="font-size:11px;padding:6px 12px" onclick="toggleApiKey()">👁️</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">API 端点</label>
+          <input class="form-input" type="text" value="http://localhost/v1" placeholder="Dify API 地址">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('agent-edit-modal')">取消</button>
+        <button class="btn btn-secondary">连通测试</button>
+        <button class="btn btn-primary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Agent Add Modal -->
+  <div class="modal-overlay" id="agent-modal">
+    <div class="modal" style="width:560px">
+      <div class="modal-header"><h3>添加 Dify 智能体</h3><button class="modal-close" onclick="closeModal('agent-modal')">✕</button></div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">智能体名称 *</label>
+            <input class="form-input" type="text" placeholder="输入名称...">
+          </div>
+          <div class="form-group">
+            <label class="form-label">模式 *</label>
+            <select class="form-input" style="cursor:pointer">
+              <option>💬 Chat</option>
+              <option>🔧 Completion</option>
+              <option>🔄 Workflow</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">描述</label>
+          <input class="form-input" type="text" placeholder="简要描述智能体功能...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Dify App ID *</label>
+          <input class="form-input" type="text" placeholder="从 Dify 工作室获取">
+        </div>
+        <div class="form-group">
+          <label class="form-label">API Key *</label>
+          <input class="form-input" type="text" placeholder="app-...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">API 端点</label>
+          <input class="form-input" type="text" value="http://localhost/v1">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('agent-modal')">取消</button>
+        <button class="btn btn-primary">添加</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Test Modal -->
+  <div class="modal-overlay" id="test-modal">
+    <div class="modal" style="width:500px">
+      <div class="modal-header"><h3>连通性测试</h3><button class="modal-close" onclick="closeModal('test-modal')">✕</button></div>
+      <div class="modal-body">
+        <div style="text-align:center;padding:20px">
+          <div style="font-size:40px;margin-bottom:12px">✅</div>
+          <div style="font-size:16px;font-weight:700;margin-bottom:4px">连接成功</div>
+          <div style="font-size:13px;color:var(--text-secondary)">智能体响应正常，延迟 128ms</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="closeModal('test-modal')">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Folder Create Modal -->
+  <div class="modal-overlay" id="folder-modal">
+    <div class="modal" style="width:400px">
+      <div class="modal-header"><h3>新建文件夹</h3><button class="modal-close" onclick="closeModal('folder-modal')">✕</button></div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">文件夹名称</label>
+          <input class="form-input" type="text" id="new-folder-name" placeholder="输入文件夹名称...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">上级文件夹</label>
+          <select class="form-input" style="cursor:pointer">
+            <option>根目录</option>
+            <option>项目文档</option>
+            <option>会议记录</option>
+            <option>研究资料</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('folder-modal')">取消</button>
+        <button class="btn btn-primary" onclick="createFolder()">创建</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Folder Rename Modal -->
+  <div class="modal-overlay" id="folder-rename-modal">
+    <div class="modal" style="width:400px">
+      <div class="modal-header"><h3>重命名文件夹</h3><button class="modal-close" onclick="closeModal('folder-rename-modal')">✕</button></div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">新名称</label>
+          <input class="form-input" type="text" id="rename-folder-name" placeholder="输入新名称...">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('folder-rename-modal')">取消</button>
+        <button class="btn btn-primary" onclick="renameFolder()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Folder Delete Confirm Modal -->
+  <div class="modal-overlay" id="folder-delete-modal">
+    <div class="modal" style="width:400px">
+      <div class="modal-header"><h3>删除文件夹</h3><button class="modal-close" onclick="closeModal('folder-delete-modal')">✕</button></div>
+      <div class="modal-body">
+        <div style="text-align:center;padding:12px 0">
+          <div style="font-size:36px;margin-bottom:10px">⚠️</div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:4px">确定删除该文件夹？</div>
+          <div style="font-size:13px;color:var(--text-secondary)">文件夹内的文件将移回"全部文件"，不会被删除。</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('folder-delete-modal')">取消</button>
+        <button class="btn btn-danger" onclick="deleteFolder()">确认删除</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

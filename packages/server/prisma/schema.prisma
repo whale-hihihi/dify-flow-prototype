@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// M1: Users (simplified single-user for course project)
+// ============================================================
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique @db.VarChar(50)
+  email        String   @unique @db.VarChar(255)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  role         String   @default("admin") @db.VarChar(20)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  difyConfigs DifyConfig[]
+  agents      Agent[]
+  folders     Folder[]
+  assets      Asset[]
+
+  @@map("users")
+}
+
+// ============================================================
+// M1: Dify connection configuration (one per user)
+// ============================================================
+model DifyConfig {
+  id               String   @id @default(cuid())
+  difyUrl          String   @map("dify_url") @db.VarChar(500)
+  connectionStatus String   @default("disconnected") @map("connection_status") @db.VarChar(20)
+  userId           String   @map("user_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("dify_configs")
+}
+
+// ============================================================
+// M1: Dify Agents
+// ============================================================
+model Agent {
+  id              String   @id @default(cuid())
+  name            String   @db.VarChar(100)
+  mode            String   @db.VarChar(20)
+  description     String?  @db.Text
+  appId           String   @map("app_id") @db.VarChar(100)
+  apiKeyEncrypted String   @map("api_key_encrypted") @db.Text
+  apiKeyIv        String   @map("api_key_iv") @db.Text
+  endpoint        String   @default("http://localhost/v1") @db.VarChar(500)
+  callCount       Int      @default(0) @map("call_count")
+  isOnline        Boolean  @default(false) @map("is_online")
+  userId          String   @map("user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("agents")
+}
+
+// ============================================================
+// M2: Folders (flat structure)
+// ============================================================
+model Folder {
+  id        String   @id @default(cuid())
+  name      String   @db.VarChar(100)
+  isDefault Boolean  @default(false) @map("is_default")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assets Asset[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("folders")
+}
+
+// ============================================================
+// M2: Assets (uploaded files with parsed content)
+// ============================================================
+model Asset {
+  id            String    @id @default(cuid())
+  filename      String    @db.VarChar(255)
+  originalName  String    @map("original_name") @db.VarChar(255)
+  fileType      String    @map("file_type") @db.VarChar(20)
+  fileSize      Int       @map("file_size")
+  filePath      String    @map("file_path") @db.VarChar(500)
+  parsedText    String?   @map("parsed_text") @db.Text
+  status        String    @default("uploading") @db.VarChar(20)
+  errorMessage  String?   @map("error_message") @db.Text
+  folderId      String?   @map("folder_id")
+  userId        String    @map("user_id")
+  sourceAssetId String?   @map("source_asset_id") @db.VarChar(50)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folder Folder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([folderId])
+  @@index([status])
+  @@index([fileType])
+  @@index([createdAt])
+  @@map("assets")
+}
