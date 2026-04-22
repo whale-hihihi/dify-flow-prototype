@@ -109,34 +109,46 @@ export async function chatWithDifyAgent(
   message: string,
   mode: string,
   textFileContent?: string,
+  onProgress?: (progress: number) => void,
 ): Promise<{ answer: string }> {
   const baseUrl = endpoint.replace(/\/$/, '') + '/';
   const headers = { Authorization: `Bearer ${apiKey}` };
 
   // Fetch agent parameters to discover input variables
   let inputs: Record<string, any> = {};
-  let fileListKey: string | null = null;
+  let fileInputKey: string | null = null;
+  let fileInputType: 'file-list' | 'single-file' | null = null;
   try {
     const paramsUrl = new URL('parameters', baseUrl);
     const paramsRaw = await httpGet(paramsUrl, headers);
     const paramsJson = JSON.parse(paramsRaw);
+    console.log('[chatWithDifyAgent] parameters:', JSON.stringify(paramsJson).slice(0, 500));
     const userInput = paramsJson?.user_input_form;
     if (Array.isArray(userInput)) {
       for (const field of userInput) {
         const key = Object.keys(field)[0];
         const fieldDef = field[key];
         if (!key) continue;
-        if (fieldDef?.type === 'file-list') {
-          fileListKey = key;
+        if (fieldDef?.type === 'file-list' || fieldDef?.type === 'single-file') {
+          fileInputKey = key;
+          fileInputType = fieldDef.type;
         } else {
           inputs[key] = message;
         }
       }
     }
-  } catch { /* ignore */ }
+  } catch (e: any) {
+    console.log('[chatWithDifyAgent] parameters fetch failed:', e.message);
+  }
 
-  // If workflow with file-list input, upload text as .txt file to Dify
-  if (mode === 'workflow' && fileListKey && textFileContent) {
+  // Fallback: if no inputs discovered, use a sensible default
+  if (Object.keys(inputs).length === 0 && !fileInputKey) {
+    inputs = { query: message };
+    console.log('[chatWithDifyAgent] no inputs from parameters, using fallback: { query }');
+  }
+
+  // If workflow with file input, upload text as .txt file to Dify
+  if (mode === 'workflow' && fileInputKey && textFileContent) {
     try {
       const fileId = await uploadFileToDify(
         baseUrl, apiKey,
@@ -145,9 +157,15 @@ export async function chatWithDifyAgent(
         'text/plain',
       );
       console.log('[chatWithDifyAgent] uploaded text file ->', fileId);
-      inputs[fileListKey] = [{ type: 'document', transfer_method: 'local_file', upload_file_id: fileId }];
+      if (fileInputType === 'single-file') {
+        inputs[fileInputKey] = { type: 'document', transfer_method: 'local_file', upload_file_id: fileId };
+      } else {
+        inputs[fileInputKey] = [{ type: 'document', transfer_method: 'local_file', upload_file_id: fileId }];
+      }
     } catch (e: any) {
       console.log('[chatWithDifyAgent] file upload failed:', e.message);
+      // Fallback: put text content directly in the input as plain text
+      inputs[fileInputKey] = textFileContent;
     }
   }
 
@@ -156,14 +174,13 @@ export async function chatWithDifyAgent(
 
   if (mode === 'workflow') {
     path = 'workflows/run';
-    // workflow mode: no query field, inputs carry all data
-    body = JSON.stringify({ inputs, response_mode: 'blocking', user: 'difyflow-test' });
+    body = JSON.stringify({ inputs, response_mode: 'streaming', user: 'difyflow-test' });
   } else if (mode === 'completion') {
     path = 'completion-messages';
-    body = JSON.stringify({ inputs, query: message, response_mode: 'blocking', user: 'difyflow-test' });
+    body = JSON.stringify({ inputs, query: message, response_mode: 'streaming', user: 'difyflow-test' });
   } else {
     path = 'chat-messages';
-    body = JSON.stringify({ inputs, query: message, response_mode: 'blocking', user: 'difyflow-test' });
+    body = JSON.stringify({ inputs, query: message, response_mode: 'streaming', user: 'difyflow-test' });
   }
 
   console.log('[chatWithDifyAgent] mode=%s url=%s body=%s', mode, baseUrl + path, body);
@@ -177,7 +194,7 @@ export async function chatWithDifyAgent(
         port: url.port,
         path: url.pathname,
         method: 'POST',
-        timeout: 30000,
+        timeout: 120000,
         headers: {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
@@ -186,20 +203,79 @@ export async function chatWithDifyAgent(
       };
 
       const req = mod.request(options, (res) => {
-        const chunks: Buffer[] = [];
-        res.on('data', (chunk) => chunks.push(chunk));
-        res.on('end', () => {
-          const raw = Buffer.concat(chunks).toString('utf-8');
-          if (res.statusCode && res.statusCode >= 400) {
+        if (res.statusCode && res.statusCode >= 400) {
+          const chunks: Buffer[] = [];
+          res.on('data', (c) => chunks.push(c));
+          res.on('end', () => {
+            const raw = Buffer.concat(chunks).toString('utf-8');
             reject(new Error(`Dify API error: ${res.statusCode} ${raw.slice(0, 200)}`));
-            return;
+          });
+          return;
+        }
+
+        // SSE parsing state
+        let buffer = '';
+        let fullAnswer = '';
+        let nodeFinished = 0;
+        let totalNodes = 1;
+        let chunkCount = 0;
+
+        res.on('data', (chunk) => {
+          buffer += chunk.toString('utf-8');
+          const parts = buffer.split('\n\n');
+          buffer = parts.pop() || '';
+
+          for (const part of parts) {
+            const lines = part.split('\n');
+            for (const line of lines) {
+              if (!line.startsWith('data:')) continue;
+              const jsonStr = line.slice(5).trim();
+              if (!jsonStr || jsonStr === '[DONE]') continue;
+
+              try {
+                const event = JSON.parse(jsonStr);
+
+                if (mode === 'workflow') {
+                  if (event.event === 'workflow_started') {
+                    totalNodes = Math.max(1, event.data?.total_nodes || 1);
+                  } else if (event.event === 'node_finished') {
+                    nodeFinished++;
+                    if (onProgress) {
+                      onProgress(Math.min(95, Math.round((nodeFinished / totalNodes) * 95)));
+                    }
+                  } else if (event.event === 'workflow_finished') {
+                    const outputs = event.data?.outputs;
+                    fullAnswer = outputs?.text || outputs?.result || JSON.stringify(outputs);
+                  }
+                } else {
+                  // chat / completion mode
+                  if (event.event === 'agent_message' || event.event === 'message') {
+                    fullAnswer += event.answer || '';
+                    chunkCount++;
+                    if (onProgress) {
+                      // Estimate progress: first chunk = 10%, then asymptotically approach 95%
+                      onProgress(Math.min(95, 10 + Math.round(85 * (1 - Math.exp(-chunkCount / 8)))));
+                    }
+                  } else if (event.event === 'message_end') {
+                    if (!fullAnswer && event.answer) fullAnswer = event.answer;
+                  }
+                }
+              } catch { /* skip malformed SSE */ }
+            }
           }
-          try {
-            const json = JSON.parse(raw);
-            resolve({ answer: json.answer || json.data?.outputs?.text || JSON.stringify(json) });
-          } catch {
-            resolve({ answer: raw.slice(0, 2000) });
+        });
+
+        res.on('end', () => {
+          if (!fullAnswer) {
+            // Fallback: try to parse buffer as a single JSON (non-streaming response)
+            try {
+              const json = JSON.parse(buffer);
+              fullAnswer = json.answer || json.data?.outputs?.text || JSON.stringify(json);
+            } catch {
+              fullAnswer = buffer.slice(0, 2000);
+            }
           }
+          resolve({ answer: fullAnswer });
         });
       });
 

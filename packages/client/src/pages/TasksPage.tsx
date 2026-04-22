@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button, Modal, Form, Input, Select, Tag, message, Spin } from 'antd';
-import { PlusOutlined, DeleteOutlined, RedoOutlined, PauseOutlined, EyeOutlined } from '@ant-design/icons';
-import { listTasks, createTask, retryTask, cancelTask, deleteTask } from '../api/task.api';
+import { PlusOutlined, DeleteOutlined, RedoOutlined, PauseOutlined, EyeOutlined, CaretRightOutlined } from '@ant-design/icons';
+import { listTasks, createTask, retryTask, cancelTask, deleteTask, toggleScheduled } from '../api/task.api';
 import { listAgents } from '../api/agent.api';
 import { listAssets } from '../api/asset.api';
 import { getAsset } from '../api/asset.api';
@@ -132,6 +132,14 @@ export function TasksPage() {
     }
   };
 
+  const handleToggle = async (id: string, enabled: boolean) => {
+    try {
+      await toggleScheduled(id, enabled);
+      message.success(enabled ? '已启用' : '已暂停');
+      fetchTasks();
+    } catch { message.error('操作失败'); }
+  };
+
   const filteredTasks = tasks;
   const runningCount = tasks.filter((t) => t.status === 'running').length;
 
@@ -175,7 +183,7 @@ export function TasksPage() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filteredTasks.map((task) => (
-            <TaskCard key={task.id} task={task} onRetry={handleRetry} onCancel={handleCancel} onDelete={handleDelete} />
+            <TaskCard key={task.id} task={task} onRetry={handleRetry} onCancel={handleCancel} onDelete={handleDelete} onToggle={handleToggle} />
           ))}
         </div>
       )}
@@ -245,15 +253,17 @@ export function TasksPage() {
 }
 
 /* ===== Task Card ===== */
-function TaskCard({ task, onRetry, onCancel, onDelete }: {
+function TaskCard({ task, onRetry, onCancel, onDelete, onToggle }: {
   task: Task;
   onRetry: (id: string) => void;
   onCancel: (id: string) => void;
   onDelete: (id: string) => void;
+  onToggle: (id: string, enabled: boolean) => void;
 }) {
   const cfg = STATUS_CONFIG[task.status] || STATUS_CONFIG.pending;
   const isScheduled = task.type === 'scheduled';
-  const progress = task.totalFiles > 0 ? Math.round((task.completedFiles / task.totalFiles) * 100) : 0;
+  const fileProgress = task.totalFiles > 0 ? Math.round((task.completedFiles / task.totalFiles) * 100) : 0;
+  const progress = (task as any)._wsProgress != null ? (task as any)._wsProgress : fileProgress;
   const timeAgo = getTimeAgo(task.createdAt);
 
   const [resultOpen, setResultOpen] = useState(false);
@@ -334,10 +344,17 @@ function TaskCard({ task, onRetry, onCancel, onDelete }: {
         ) : task.status === 'failed' ? (
           <Tag color="error">失败</Tag>
         ) : isScheduled ? (
-          <Tag color="blue">定时任务</Tag>
+          <Tag color={task.enabled ? 'blue' : 'default'}>{task.enabled ? '定时任务' : '已暂停'}</Tag>
         ) : null}
 
         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          {isScheduled && (
+            task.enabled ? (
+              <Button size="small" icon={<PauseOutlined />} onClick={() => onToggle(task.id, false)}>暂停</Button>
+            ) : (
+              <Button size="small" type="primary" icon={<CaretRightOutlined />} onClick={() => onToggle(task.id, true)}>启用</Button>
+            )
+          )}
           {task.status === 'completed' && (
             <Button size="small" icon={<EyeOutlined />} onClick={handleViewResult}>查看结果</Button>
           )}

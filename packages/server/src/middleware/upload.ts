@@ -1,8 +1,14 @@
+import fs from 'fs';
 import multer from 'multer';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { env } from '../config/env';
 import { ALLOWED_MIME_TYPES } from '../config/constants';
+
+// Ensure upload directory exists
+if (!fs.existsSync(env.UPLOAD_DIR)) {
+  fs.mkdirSync(env.UPLOAD_DIR, { recursive: true });
+}
 
 // Multer 1.4.x 对非 ASCII 文件名使用 latin1 编码，中文会乱码
 // 需要手动从 latin1 重新解码为 utf-8

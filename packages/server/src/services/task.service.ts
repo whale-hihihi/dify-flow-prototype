@@ -2,6 +2,7 @@ import { prisma } from '../config/database';
 import { decrypt } from '../utils/crypto';
 import { chatWithDifyAgent } from './dify-client.service';
 import { broadcastToUser } from '../ws/socket-manager';
+import { addJob, removeJob } from './scheduler.service';
 
 export async function createTask(
   userId: string,
@@ -29,6 +30,8 @@ export async function createTask(
 
   if (task.type === 'immediate') {
     executeTask(task.id, userId).catch(() => {});
+  } else if (task.type === 'scheduled' && task.cronExpression) {
+    addJob(task.id, userId, task.cronExpression);
   }
 
   return task;
@@ -60,6 +63,7 @@ export async function getTask(userId: string, taskId: string) {
 export async function deleteTask(userId: string, taskId: string) {
   const task = await prisma.task.findFirst({ where: { id: taskId, userId } });
   if (!task) throw new Error('Task not found');
+  removeJob(taskId);
   // Cancel running items first
   if (task.status === 'running') {
     await prisma.taskItem.updateMany({ where: { taskId, status: 'pending' }, data: { status: 'canceled' } });
@@ -104,11 +108,17 @@ export async function cancelTask(userId: string, taskId: string) {
 export async function toggleScheduledTask(userId: string, taskId: string, enabled: boolean) {
   const task = await prisma.task.findFirst({ where: { id: taskId, userId } });
   if (!task) throw new Error('Task not found');
-  return prisma.task.update({ where: { id: taskId }, data: { enabled } });
+  const updated = await prisma.task.update({ where: { id: taskId }, data: { enabled } });
+  if (enabled && task.cronExpression) {
+    addJob(taskId, userId, task.cronExpression);
+  } else {
+    removeJob(taskId);
+  }
+  return updated;
 }
 
 // Execute task: process each file sequentially
-async function executeTask(taskId: string, userId: string) {
+export async function executeTask(taskId: string, userId: string) {
   const task = await prisma.task.findUnique({
     where: { id: taskId },
     include: { items: true, agent: true },
@@ -142,6 +152,11 @@ async function executeTask(taskId: string, userId: string) {
       const result = await chatWithDifyAgent(
         task.agent.endpoint, apiKey, message, task.agent.mode,
         task.agent.mode === 'workflow' ? textContent : undefined,
+        (fileProgress: number) => {
+          // Map file-local progress (0-95) into overall progress
+          const overallProgress = Math.round(((completed + fileProgress / 100) / total) * 100);
+          pushProgress(userId, taskId, 'running', Math.min(99, overallProgress));
+        },
       );
 
       // Save result as new asset
