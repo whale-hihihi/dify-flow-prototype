@@ -1,0 +1,32 @@
+DifyFlow 智能文本处理平台 - 测试文件
+=====================================
+
+这是一个纯文本格式的测试文件，用于验证 TXT 文件上传和解析功能。
+
+一、平台简介
+
+DifyFlow 是一个面向部队日常文本处理需求的智能化统一平台。
+通过对接 Dify AI 平台，实现文件上传、智能体处理、结果归档的完整业务闭环。
+
+二、核心功能
+
+1. 资产管理：支持 PDF、Word、Excel、TXT、Markdown、CSV 六种文件格式的上传与解析。
+2. 任务管理：提供即时任务和定时任务，支持 WebSocket 实时进度推送。
+3. 智能体管理：接入 Dify 智能体，支持对话型、补全型、工作流型三种模式。
+4. 智能体生成器：通过 AI 引导式对话，自动生成 Dify DSL YAML 配置。
+
+三、技术栈
+
+- 后端：Node.js 18+ / Express / TypeScript / Prisma / PostgreSQL 15
+- 前端：React 19 / Vite 8 / Ant Design 5 / Zustand
+- 实时通信：WebSocket
+- 安全：JWT / bcrypt / AES-256-GCM
+
+四、部署环境
+
+- 操作系统：Linux (CentOS 7+ / Ubuntu 18.04+)
+- 部署方式：一键安装包 (.run / .deb / .rpm)
+- 服务管理：Systemd (difyflow.service)
+- 网络环境：局域网部署，无需公网
+
+测试完成。

@@ -1,0 +1,187 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// M1: Users
+// ============================================================
+model User {
+  id              String   @id @default(cuid())
+  username        String   @unique @db.VarChar(50)
+  email           String   @unique @db.VarChar(255)
+  passwordHash    String   @map("password_hash") @db.VarChar(255)
+  role            String   @default("admin") @db.VarChar(20)
+  defaultAgentId  String?  @unique @map("default_agent_id") @db.VarChar(50)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  difyConfigs  DifyConfig[]
+  agents       Agent[]
+  folders      Folder[]
+  assets       Asset[]
+  tasks        Task[]
+  defaultAgent Agent?   @relation("DefaultAgent", fields: [defaultAgentId], references: [id], onDelete: SetNull)
+
+  @@map("users")
+}
+
+// ============================================================
+// M1: Dify connection configuration (one per user)
+// ============================================================
+model DifyConfig {
+  id               String   @id @default(cuid())
+  difyUrl          String   @map("dify_url") @db.VarChar(500)
+  connectionStatus String   @default("disconnected") @map("connection_status") @db.VarChar(20)
+  userId           String   @map("user_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("dify_configs")
+}
+
+// ============================================================
+// M1: Dify Agents
+// ============================================================
+model Agent {
+  id              String   @id @default(cuid())
+  name            String   @db.VarChar(100)
+  mode            String   @db.VarChar(20)
+  description     String?  @db.Text
+  appId           String   @db.VarChar(100)
+  apiKeyEncrypted String   @map("api_key_encrypted") @db.Text
+  apiKeyIv        String   @map("api_key_iv") @db.Text
+  endpoint        String   @default("http://localhost/v1") @db.VarChar(500)
+  callCount       Int      @default(0) @map("call_count")
+  isOnline        Boolean  @default(false) @map("is_online")
+  userId          String   @map("user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  defaultForUser User?     @relation("DefaultAgent")
+  tasks          Task[]
+
+  @@index([userId])
+  @@map("agents")
+}
+
+// ============================================================
+// M2: Folders (flat structure)
+// ============================================================
+model Folder {
+  id        String   @id @default(cuid())
+  name      String   @db.VarChar(100)
+  isDefault Boolean  @default(false) @map("is_default")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assets AssetFolder[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("folders")
+}
+
+// ============================================================
+// M2: Assets (uploaded files with parsed content)
+// ============================================================
+model Asset {
+  id            String    @id @default(cuid())
+  filename      String    @db.VarChar(255)
+  originalName  String    @map("original_name") @db.VarChar(255)
+  fileType      String    @map("file_type") @db.VarChar(20)
+  fileSize      Int       @map("file_size")
+  filePath      String    @map("file_path") @db.VarChar(500)
+  parsedText    String?   @map("parsed_text") @db.Text
+  status        String    @default("uploading") @db.VarChar(20)
+  errorMessage  String?   @map("error_message") @db.Text
+  userId        String    @map("user_id")
+  sourceAssetId String?   @map("source_asset_id") @db.VarChar(50)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceFor    TaskItem[] @relation("SourceAsset")
+  resultFor    TaskItem[] @relation("ResultAsset")
+  folders      AssetFolder[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([fileType])
+  @@index([createdAt])
+  @@map("assets")
+}
+
+// ============================================================
+// M2: Asset-Folder relationship (many-to-many)
+// ============================================================
+model AssetFolder {
+  id        String   @id @default(cuid())
+  assetId   String   @map("asset_id")
+  folderId  String   @map("folder_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  asset  Asset  @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  folder Folder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, folderId])
+  @@index([assetId])
+  @@index([folderId])
+  @@map("asset_folders")
+}
+
+// ============================================================
+// M2: Tasks
+// ============================================================
+model Task {
+  id             String    @id @default(cuid())
+  name           String    @db.VarChar(200)
+  type           String    @default("immediate") @db.VarChar(20)
+  status         String    @default("pending") @db.VarChar(20)
+  agentId        String    @map("agent_id")
+  userId         String    @map("user_id")
+  totalFiles     Int       @default(0) @map("total_files")
+  completedFiles Int       @default(0) @map("completed_files")
+  cronExpression String?   @map("cron_expression") @db.VarChar(100)
+  prompt         String?   @db.Text
+  enabled        Boolean   @default(true)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent Agent       @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  items TaskItem[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([type])
+  @@map("tasks")
+}
+
+model TaskItem {
+  id             String   @id @default(cuid())
+  taskId         String   @map("task_id")
+  sourceAssetId  String   @map("source_asset_id")
+  resultAssetId  String?  @map("result_asset_id")
+  status         String   @default("pending") @db.VarChar(20)
+  progress       Int      @default(0)
+  result         String?  @db.Text
+  error          String?  @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  task        Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  sourceAsset Asset @relation("SourceAsset", fields: [sourceAssetId], references: [id], onDelete: Cascade)
+  resultAsset Asset? @relation("ResultAsset", fields: [resultAssetId], references: [id], onDelete: SetNull)
+
+  @@index([taskId])
+  @@map("task_items")
+}
