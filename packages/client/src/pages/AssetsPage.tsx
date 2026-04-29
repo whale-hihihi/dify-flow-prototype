@@ -688,17 +688,70 @@ export function AssetsPage() {
     try {
       switch (action) {
         case 'batch-delete':
-          await moveToTrash(selectedAssets);
-          message.success(`已将 ${selectedAssets.length} 个文件移至回收站`);
-          break;
+          modal.confirm({
+            title: '批量删除',
+            content: `确定要将这 ${selectedAssets.length} 个文件移至回收站吗？`,
+            okType: 'danger',
+            okText: '删除',
+            cancelText: '取消',
+            onOk: async () => {
+              try {
+                await moveToTrash(selectedAssets);
+                message.success(`已将 ${selectedAssets.length} 个文件移至回收站`);
+                setIsMultiSelectMode(false);
+                setSelectedAssets([]);
+                setSelectAllChecked(false);
+                fetchAssets();
+                fetchFolders();
+              } catch (err: any) {
+                message.error(`批量删除失败: ${err.response?.data?.error || '未知错误'}`);
+              }
+            },
+          });
+          return;
         case 'batch-restore':
-          await restoreAssets(selectedAssets);
-          message.success(`已恢复 ${selectedAssets.length} 个文件`);
-          break;
+          modal.confirm({
+            title: '批量恢复',
+            content: `确定要恢复这 ${selectedAssets.length} 个文件吗？`,
+            okText: '恢复',
+            cancelText: '取消',
+            onOk: async () => {
+              try {
+                await restoreAssets(selectedAssets);
+                message.success(`已恢复 ${selectedAssets.length} 个文件`);
+                setIsMultiSelectMode(false);
+                setSelectedAssets([]);
+                setSelectAllChecked(false);
+                fetchAssets();
+                fetchFolders();
+              } catch (err: any) {
+                message.error(`批量恢复失败: ${err.response?.data?.error || '未知错误'}`);
+              }
+            },
+          });
+          return;
         case 'batch-permanent-delete':
-          await permanentlyDeleteAssets(selectedAssets);
-          message.success(`已永久删除 ${selectedAssets.length} 个文件`);
-          break;
+          modal.confirm({
+            title: '批量彻底删除',
+            content: `确定要永久删除这 ${selectedAssets.length} 个文件吗？此操作不可恢复。`,
+            okType: 'danger',
+            okText: '永久删除',
+            cancelText: '取消',
+            onOk: async () => {
+              try {
+                await permanentlyDeleteAssets(selectedAssets);
+                message.success(`已永久删除 ${selectedAssets.length} 个文件`);
+                setIsMultiSelectMode(false);
+                setSelectedAssets([]);
+                setSelectAllChecked(false);
+                fetchAssets();
+                fetchFolders();
+              } catch (err: any) {
+                message.error(`批量彻底删除失败: ${err.response?.data?.error || '未知错误'}`);
+              }
+            },
+          });
+          return;
         case 'batch-copy':
           // 打开批量复制对话框
           setBatchCopyOpen(true);
@@ -710,13 +763,6 @@ export function AssetsPage() {
         default:
           return;
       }
-
-      // 清除选中状态
-      setIsMultiSelectMode(false);
-      setSelectedAssets([]);
-      setSelectAllChecked(false);
-      fetchAssets();
-      fetchFolders();
     } catch (err: any) {
       message.error(`批量操作失败: ${err.response?.data?.error || '未知错误'}`);
     }
@@ -962,25 +1008,6 @@ export function AssetsPage() {
 
           {/* Multi-select controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {isMultiSelectMode && (
-              <Button
-                type="primary"
-                danger={selectAllChecked}
-                disabled={assets.length === 0}
-                onClick={() => {
-                  if (selectAllChecked) {
-                    setSelectedAssets([]);
-                    setSelectAllChecked(false);
-                  } else {
-                    setSelectedAssets(assets.map(a => a.id));
-                    setSelectAllChecked(true);
-                  }
-                }}
-              >
-                {selectAllChecked ? `取消全选 (${assets.length})` : '全选'}
-              </Button>
-            )}
-
             <Button
               type={isMultiSelectMode ? "primary" : "default"}
               style={{
@@ -1016,6 +1043,25 @@ export function AssetsPage() {
             >
               {isMultiSelectMode ? `已选 (${selectedAssets.length})` : '多选'}
             </Button>
+
+            {isMultiSelectMode && (
+              <Button
+                type="primary"
+                danger={selectAllChecked}
+                disabled={assets.length === 0}
+                onClick={() => {
+                  if (selectAllChecked) {
+                    setSelectedAssets([]);
+                    setSelectAllChecked(false);
+                  } else {
+                    setSelectedAssets(assets.map(a => a.id));
+                    setSelectAllChecked(true);
+                  }
+                }}
+              >
+                {selectAllChecked ? `取消全选 (${assets.length})` : '全选'}
+              </Button>
+            )}
           </div>
         </div>
 
@@ -1060,14 +1106,14 @@ export function AssetsPage() {
                   }}
                   styles={{ body: { padding: '14px 16px' } }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                     {/* 选中指示器 */}
                     {isMultiSelectMode && (
                       <div
                         style={{
-                          width: 20,
-                          height: 20,
-                          borderRadius: 4,
+                          width: 16,
+                          height: 16,
+                          borderRadius: 3,
                           border: selectedAssets.includes(asset.id) ? '2px solid #D97706' : '1px solid #d9d9d9',
                           background: selectedAssets.includes(asset.id) ? '#D97706' : 'transparent',
                           display: 'flex',
@@ -1082,10 +1128,10 @@ export function AssetsPage() {
                       >
                         {selectedAssets.includes(asset.id) && (
                           <div style={{
-                            width: 12,
-                            height: 12,
+                            width: 8,
+                            height: 8,
                             background: 'white',
-                            borderRadius: 2,
+                            borderRadius: 1,
                           }} />
                         )}
                       </div>
@@ -1116,102 +1162,104 @@ export function AssetsPage() {
                       <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {asset.originalName}
                       </div>
-                      <div style={{ fontSize: 11, color: '#5F6B80', display: 'flex', gap: 12 }}>
-                        <span>{formatSize(asset.fileSize)}</span>
-                        <span>{formatTime(asset.createdAt)}</span>
+                      <div style={{ fontSize: 11, color: '#5F6B80', display: 'flex', gap: 12, alignItems: 'center', whiteSpace: 'nowrap' }}>
+                        <span style={{ flexShrink: 0 }}>{formatSize(asset.fileSize)}</span>
+                        <span style={{ flexShrink: 0 }}>{formatTime(asset.createdAt)}</span>
                       </div>
                     </div>
-                    <Tag color={st.color}>{st.label}</Tag>
-                    <Dropdown
-                      trigger={['click']}
-                      menu={{
-                        items: (() => {
-                          const trashFolder = folders.find(f => f.isTrash);
-                          const isInTrash = selectedFolder && trashFolder && selectedFolder === trashFolder.id;
-                          const isInAllFiles = selectedFolder === null; // 是否在全部文件中
-                          const hasSelectedAssets = selectedAssets.length > 0;
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 0}}>
+                      <Tag color={st.color}>{st.label}</Tag>
+                      <Dropdown
+                        trigger={['click']}
+                        menu={{
+                          items: (() => {
+                            const trashFolder = folders.find(f => f.isTrash);
+                            const isInTrash = selectedFolder && trashFolder && selectedFolder === trashFolder.id;
+                            const isInAllFiles = selectedFolder === null; // 是否在全部文件中
+                            const hasSelectedAssets = selectedAssets.length > 0;
 
-                          // 批量操作项
-                          const batchItems = [];
-                          if (hasSelectedAssets) {
-                            if (isInTrash) {
-                              // 回收站批量操作
-                              batchItems.push(
-                                { key: 'batch-restore', icon: <UndoOutlined />, label: `批量恢复 (${selectedAssets.length})` },
-                                { key: 'batch-permanent-delete', icon: <DeleteRowOutlined />, label: `批量彻底删除 (${selectedAssets.length})`, danger: true },
-                              );
-                            } else {
-                              // 普通文件批量操作
-                              batchItems.push(
-                                { key: 'batch-delete', icon: <DeleteOutlined />, label: `批量删除 (${selectedAssets.length})`, danger: true },
-                              );
-                              if (isInAllFiles) {
+                            // 批量操作项
+                            const batchItems = [];
+                            if (hasSelectedAssets) {
+                              if (isInTrash) {
+                                // 回收站批量操作
                                 batchItems.push(
-                                  { key: 'batch-copy', icon: <FolderOutlined />, label: `批量复制到 (${selectedAssets.length})` },
+                                  { key: 'batch-restore', icon: <UndoOutlined />, label: `批量恢复 (${selectedAssets.length})` },
+                                  { key: 'batch-permanent-delete', icon: <DeleteRowOutlined />, label: `批量彻底删除 (${selectedAssets.length})`, danger: true },
                                 );
                               } else {
+                                // 普通文件批量操作
                                 batchItems.push(
-                                  { key: 'batch-move', icon: <FolderOutlined />, label: `批量移动到 (${selectedAssets.length})` },
-                                  { key: 'batch-copy', icon: <FolderOutlined />, label: `批量复制到 (${selectedAssets.length})` },
+                                  { key: 'batch-delete', icon: <DeleteOutlined />, label: `批量删除 (${selectedAssets.length})`, danger: true },
                                 );
+                                if (isInAllFiles) {
+                                  batchItems.push(
+                                    { key: 'batch-copy', icon: <FolderOutlined />, label: `批量复制到 (${selectedAssets.length})` },
+                                  );
+                                } else {
+                                  batchItems.push(
+                                    { key: 'batch-move', icon: <FolderOutlined />, label: `批量移动到 (${selectedAssets.length})` },
+                                    { key: 'batch-copy', icon: <FolderOutlined />, label: `批量复制到 (${selectedAssets.length})` },
+                                  );
+                                }
                               }
+
+                              batchItems.push({ type: 'divider' as const });
                             }
 
-                            batchItems.push({ type: 'divider' as const });
-                          }
+                            // 单个文件操作项
+                            const singleItems = [];
+                            if (isInTrash) {
+                              // 回收站中的文件操作
+                              singleItems.push(
+                                { key: 'restore', icon: <UndoOutlined />, label: '恢复' },
+                                { key: 'permanent-delete', icon: <DeleteRowOutlined />, label: '永久删除', danger: true },
+                              );
+                            } else if (isInAllFiles) {
+                              // 全部文件中的操作
+                              singleItems.push(
+                                { key: 'preview', icon: <EyeOutlined />, label: '预览', disabled: asset.status !== 'ready' },
+                                { key: 'download', icon: <DownloadOutlined />, label: '下载' },
+                                { key: 'show-folders', icon: <FolderOutlined />, label: '所在文件夹' },
+                                { key: 'copy', icon: <FolderOutlined />, label: '复制到' },
+                                { type: 'divider' as const },
+                                { key: 'delete', icon: <DeleteOutlined />, label: '删除', danger: true },
+                              );
+                            } else {
+                              // 普通文件夹中的操作
+                              singleItems.push(
+                                { key: 'preview', icon: <EyeOutlined />, label: '预览', disabled: asset.status !== 'ready' },
+                                { key: 'download', icon: <DownloadOutlined />, label: '下载' },
+                                { key: 'show-folders', icon: <FolderOutlined />, label: '所在文件夹' },
+                                { key: 'move', icon: <FolderOutlined />, label: '移动到' },
+                                { key: 'copy', icon: <FolderOutlined />, label: '复制到' },
+                                { type: 'divider' as const },
+                                { key: 'delete', icon: <DeleteOutlined />, label: '删除', danger: true },
+                              );
+                            }
 
-                          // 单个文件操作项
-                          const singleItems = [];
-                          if (isInTrash) {
-                            // 回收站中的文件操作
-                            singleItems.push(
-                              { key: 'restore', icon: <UndoOutlined />, label: '恢复' },
-                              { key: 'permanent-delete', icon: <DeleteRowOutlined />, label: '永久删除', danger: true },
-                            );
-                          } else if (isInAllFiles) {
-                            // 全部文件中的操作
-                            singleItems.push(
-                              { key: 'preview', icon: <EyeOutlined />, label: '预览', disabled: asset.status !== 'ready' },
-                              { key: 'download', icon: <DownloadOutlined />, label: '下载' },
-                              { key: 'show-folders', icon: <FolderOutlined />, label: '所在文件夹' },
-                              { key: 'copy', icon: <FolderOutlined />, label: '复制到' },
-                              { type: 'divider' as const },
-                              { key: 'delete', icon: <DeleteOutlined />, label: '删除', danger: true },
-                            );
-                          } else {
-                            // 普通文件夹中的操作
-                            singleItems.push(
-                              { key: 'preview', icon: <EyeOutlined />, label: '预览', disabled: asset.status !== 'ready' },
-                              { key: 'download', icon: <DownloadOutlined />, label: '下载' },
-                              { key: 'show-folders', icon: <FolderOutlined />, label: '所在文件夹' },
-                              { key: 'move', icon: <FolderOutlined />, label: '移动到' },
-                              { key: 'copy', icon: <FolderOutlined />, label: '复制到' },
-                              { type: 'divider' as const },
-                              { key: 'delete', icon: <DeleteOutlined />, label: '删除', danger: true },
-                            );
-                          }
-
-                          return [...batchItems, ...singleItems];
-                        })(),
-                        onClick: ({ key }) => {
-                          if (key.startsWith('batch-')) {
-                            handleBatchAction(key);
-                          } else {
-                            // 单个文件操作
-                            if (key === 'preview') handlePreview(asset);
-                            else if (key === 'download') handleDownload(asset);
-                            else if (key === 'show-folders') handleShowFolders(asset);
-                            else if (key === 'move') { setMoveTarget(asset); setMoveFolderId(asset.folderId || null); }
-                            else if (key === 'copy') { setCopyTarget(asset); setCopyFolderId(null); }
-                            else if (key === 'delete') confirmDeleteAsset(asset);
-                            else if (key === 'restore') handleRestoreAsset(asset);
-                            else if (key === 'permanent-delete') handlePermanentlyDeleteAsset(asset);
-                          }
-                        },
-                      }}
-                    >
-                      <Button type="text" size="small" icon={<MoreOutlined />} />
-                    </Dropdown>
+                            return [...batchItems, ...singleItems];
+                          })(),
+                          onClick: ({ key }) => {
+                            if (key.startsWith('batch-')) {
+                              handleBatchAction(key);
+                            } else {
+                              // 单个文件操作
+                              if (key === 'preview') handlePreview(asset);
+                              else if (key === 'download') handleDownload(asset);
+                              else if (key === 'show-folders') handleShowFolders(asset);
+                              else if (key === 'move') { setMoveTarget(asset); setMoveFolderId(asset.folderId || null); }
+                              else if (key === 'copy') { setCopyTarget(asset); setCopyFolderId(null); }
+                              else if (key === 'delete') confirmDeleteAsset(asset);
+                              else if (key === 'restore') handleRestoreAsset(asset);
+                              else if (key === 'permanent-delete') handlePermanentlyDeleteAsset(asset);
+                            }
+                          },
+                        }}
+                      >
+                        <Button type="text" size="small" icon={<MoreOutlined />} />
+                      </Dropdown>
+                    </div>
                   </div>
                 </Card>
               );
