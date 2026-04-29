@@ -4,6 +4,8 @@ import { LoginPage } from '../pages/LoginPage';
 import { AssetsPage } from '../pages/AssetsPage';
 import { TasksPage } from '../pages/TasksPage';
 import { AgentsPage } from '../pages/AgentsPage';
+import { TemplatesPage } from '../pages/TemplatesPage';
+import { GeneratorPage } from '../pages/GeneratorPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { useAuthStore } from '../stores/authStore';
 import React from 'react';
@@ -31,6 +33,8 @@ export const router = createBrowserRouter([
       { path: 'assets', element: <AssetsPage /> },
       { path: 'tasks', element: <TasksPage /> },
       { path: 'agents', element: <AgentsPage /> },
+      { path: 'agents/templates', element: <TemplatesPage /> },
+      { path: 'agents/generator', element: <GeneratorPage /> },
       { path: 'settings', element: <SettingsPage /> },
     ],
   },

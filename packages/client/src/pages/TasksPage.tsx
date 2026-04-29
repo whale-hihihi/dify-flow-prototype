@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Button, Modal, Form, Input, Select, Tag, message, Spin } from 'antd';
+import { Button, Modal, Form, Input, Select, Tag, message, Spin, TimePicker, InputNumber, Checkbox } from 'antd';
 import { PlusOutlined, DeleteOutlined, RedoOutlined, PauseOutlined, EyeOutlined, CaretRightOutlined } from '@ant-design/icons';
 import { listTasks, createTask, retryTask, cancelTask, deleteTask, toggleScheduled } from '../api/task.api';
 import { listAgents } from '../api/agent.api';
@@ -7,6 +7,71 @@ import { listAssets } from '../api/asset.api';
 import { getAsset } from '../api/asset.api';
 import { useWebSocket } from '../hooks/useWebSocket';
 import type { Task, Agent, Asset } from '../types';
+import dayjs from 'dayjs';
+
+const WEEKDAY_OPTIONS = [
+  { label: '周一', value: 1 },
+  { label: '周二', value: 2 },
+  { label: '周三', value: 3 },
+  { label: '周四', value: 4 },
+  { label: '周五', value: 5 },
+  { label: '周六', value: 6 },
+  { label: '周日', value: 0 },
+];
+
+const FREQ_OPTIONS = [
+  { label: '每天', value: 'daily' },
+  { label: '每周', value: 'weekly' },
+  { label: '每月', value: 'monthly' },
+  { label: '自定义间隔', value: 'interval' },
+];
+
+function buildCron(freq: string, time: dayjs.Dayjs | null, weekdays: number[], monthDay: number | null, intervalVal: number | null, intervalUnit: string): string {
+  const m = time ? time.minute() : 0;
+  const h = time ? time.hour() : 8;
+  switch (freq) {
+    case 'daily': return `${m} ${h} * * *`;
+    case 'weekly': {
+      const days = weekdays.length > 0 ? weekdays.join(',') : '1';
+      return `${m} ${h} * * ${days}`;
+    }
+    case 'monthly': return `${m} ${h} ${monthDay || 1} * *`;
+    case 'interval': {
+      if (!intervalVal || intervalVal < 1) return `*/30 * * * *`;
+      if (intervalUnit === 'minute') return `*/${intervalVal} * * * *`;
+      return `0 */${intervalVal} * * *`;
+    }
+    default: return `0 8 * * *`;
+  }
+}
+
+function cronToLabel(cron: string): string {
+  if (!cron) return '';
+  const parts = cron.trim().split(/\s+/);
+  if (parts.length !== 5) return cron;
+  const [min, hour, dom, mon, dow] = parts;
+
+  if (dow !== '*' && dom === '*' && mon === '*' && !min.startsWith('*/') && !hour.startsWith('*/')) {
+    const dayMap: Record<string, string> = { '0': '周日', '1': '周一', '2': '周二', '3': '周三', '4': '周四', '5': '周五', '6': '周六' };
+    const days = dow.split(',').map(d => dayMap[d] || d).join('、');
+    return `每${days} ${hour.padStart(2, '0')}:${min.padStart(2, '0')}`;
+  }
+  if (dom !== '*' && dow === '*' && mon === '*' && !min.startsWith('*/') && !hour.startsWith('*/')) {
+    return `每月 ${dom} 日 ${hour.padStart(2, '0')}:${min.padStart(2, '0')}`;
+  }
+  if (dom === '*' && dow === '*' && mon === '*' && !min.startsWith('*/') && !hour.startsWith('*/')) {
+    return `每天 ${hour.padStart(2, '0')}:${min.padStart(2, '0')}`;
+  }
+  if (min.startsWith('*/') && hour === '*' && dom === '*' && dow === '*') {
+    const v = min.replace('*/', '');
+    return `每 ${v} 分钟`;
+  }
+  if (hour.startsWith('*/') && min === '0' && dom === '*' && dow === '*') {
+    const v = hour.replace('*/', '');
+    return `每 ${v} 小时`;
+  }
+  return cron;
+}
 
 const STATUS_CONFIG: Record<string, { color: string; label: string; dotColor: string }> = {
   pending: { color: '#9CA3B8', label: '等待中', dotColor: '#9CA3B8' },
@@ -32,6 +97,12 @@ export function TasksPage() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [form] = Form.useForm();
   const [taskType, setTaskType] = useState('immediate');
+  const [scheduleFreq, setScheduleFreq] = useState('daily');
+  const [scheduleTime, setScheduleTime] = useState(dayjs('08:00', 'HH:mm'));
+  const [scheduleWeekdays, setScheduleWeekdays] = useState<number[]>([1]);
+  const [scheduleMonthDay, setScheduleMonthDay] = useState<number>(1);
+  const [scheduleInterval, setScheduleInterval] = useState<number>(30);
+  const [scheduleIntervalUnit, setScheduleIntervalUnit] = useState('minute');
 
   const fetchTasks = useCallback(async (showLoading = true) => {
     try {
@@ -72,6 +143,12 @@ export function TasksPage() {
   const handleOpenCreate = async () => {
     form.resetFields();
     setTaskType('immediate');
+    setScheduleFreq('daily');
+    setScheduleTime(dayjs('08:00', 'HH:mm'));
+    setScheduleWeekdays([1]);
+    setScheduleMonthDay(1);
+    setScheduleInterval(30);
+    setScheduleIntervalUnit('minute');
     try {
       const [agentList, assetList] = await Promise.all([
         listAgents(),
@@ -89,13 +166,16 @@ export function TasksPage() {
   const handleCreate = async () => {
     try {
       const values = await form.validateFields();
+      const cronExpression = taskType === 'scheduled'
+        ? buildCron(scheduleFreq, scheduleTime, scheduleWeekdays, scheduleMonthDay, scheduleInterval, scheduleIntervalUnit)
+        : undefined;
       await createTask({
         name: values.name,
         type: taskType,
         agentId: values.agentId,
         assetIds: values.assetIds,
         prompt: values.prompt,
-        cronExpression: values.cronExpression,
+        cronExpression,
       });
       message.success('任务创建成功');
       setCreateOpen(false);
@@ -225,9 +305,73 @@ export function TasksPage() {
           </div>
 
           {taskType === 'scheduled' && (
-            <Form.Item label="触发时间" name="cronExpression">
-              <Input placeholder="Cron 表达式，如 0 8 * * *（每天8点）" />
-            </Form.Item>
+            <>
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 6 }}>执行频率</div>
+                <Select
+                  value={scheduleFreq}
+                  onChange={setScheduleFreq}
+                  options={FREQ_OPTIONS}
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              {(scheduleFreq === 'daily' || scheduleFreq === 'weekly' || scheduleFreq === 'monthly') && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 6 }}>执行时间</div>
+                  <TimePicker
+                    value={scheduleTime}
+                    onChange={(t) => setScheduleTime(t)}
+                    format="HH:mm"
+                    style={{ width: '100%' }}
+                  />
+                </div>
+              )}
+
+              {scheduleFreq === 'weekly' && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 6 }}>选择星期</div>
+                  <Checkbox.Group
+                    value={scheduleWeekdays}
+                    onChange={(v) => setScheduleWeekdays(v as number[])}
+                    options={WEEKDAY_OPTIONS}
+                  />
+                </div>
+              )}
+
+              {scheduleFreq === 'monthly' && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 6 }}>每月几号</div>
+                  <InputNumber
+                    value={scheduleMonthDay}
+                    onChange={(v) => setScheduleMonthDay(v ?? 1)}
+                    min={1} max={31}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+              )}
+
+              {scheduleFreq === 'interval' && (
+                <div style={{ marginBottom: 12, display: 'flex', gap: 8 }}>
+                  <InputNumber
+                    value={scheduleInterval}
+                    onChange={(v) => setScheduleInterval(v ?? 30)}
+                    min={1} max={999}
+                    style={{ flex: 1 }}
+                  />
+                  <Select
+                    value={scheduleIntervalUnit}
+                    onChange={setScheduleIntervalUnit}
+                    options={[{ label: '分钟', value: 'minute' }, { label: '小时', value: 'hour' }]}
+                    style={{ width: 100 }}
+                  />
+                </div>
+              )}
+
+              <Form.Item name="cronExpression" hidden>
+                <Input />
+              </Form.Item>
+            </>
           )}
 
           <Form.Item label="选择智能体" name="agentId" rules={[{ required: true, message: '请选择智能体' }]}>
@@ -324,7 +468,7 @@ function TaskCard({ task, onRetry, onCancel, onDelete, onToggle }: {
             <span>🤖 {task.agent?.name || '未知'}</span>
             <span>📄 {task.totalFiles} 个文件</span>
             <span>🕐 {timeAgo}</span>
-            {isScheduled && task.cronExpression && <span>⏰ {task.cronExpression}</span>}
+            {isScheduled && task.cronExpression && <span>⏰ {cronToLabel(task.cronExpression)}</span>}
           </div>
         </div>
 

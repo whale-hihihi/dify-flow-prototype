@@ -7,6 +7,8 @@ import {
   SettingOutlined,
   ThunderboltOutlined,
   UnorderedListOutlined,
+  AppstoreOutlined,
+  BulbOutlined,
 } from '@ant-design/icons';
 import '../styles/global.css';
 
@@ -25,6 +27,11 @@ const menuItems: MenuProps['items'] = [
     key: '/agents',
     icon: <RobotOutlined />,
     label: 'Dify 智能体',
+    children: [
+      { key: '/agents', icon: <RobotOutlined />, label: '智能体管理' },
+      { key: '/agents/templates', icon: <AppstoreOutlined />, label: '模板广场' },
+      { key: '/agents/generator', icon: <BulbOutlined />, label: '智能体生成器' },
+    ],
   },
   {
     key: '/settings',
@@ -36,7 +43,9 @@ const menuItems: MenuProps['items'] = [
 const viewTitles: Record<string, string> = {
   '/assets': '资产管理',
   '/tasks': '任务管理',
-  '/agents': 'Dify 智能体管理',
+  '/agents': '智能体管理',
+  '/agents/templates': '模板广场',
+  '/agents/generator': '智能体生成器',
   '/settings': '个人设置',
 };
 
@@ -75,6 +84,7 @@ export function AppLayout() {
           <Menu
             mode="inline"
             selectedKeys={[location.pathname]}
+            defaultOpenKeys={['/agents']}
             items={menuItems}
             onClick={handleMenuClick}
             style={{ border: 'none', background: 'transparent' }}

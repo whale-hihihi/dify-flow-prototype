@@ -4,10 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "D:/node.exe node_modules/vite/bin/vite.js",
-    "build": "tsc -b && D:/node.exe node_modules/vite/bin/vite.js build",
+    "dev": "vite",
+    "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "D:/node.exe node_modules/vite/bin/vite.js preview"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@ant-design/icons": "^5.6.1",

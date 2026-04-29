@@ -1,7 +1,7 @@
 {
   "watch": ["src"],
   "ext": "ts",
-  "exec": "D:/node.exe D:/database/dify-flow-prototype-main/node_modules/ts-node/dist/bin.js src/index.ts",
+  "exec": "node ../../node_modules/ts-node/dist/bin.js src/index.ts",
   "ignore": ["src/**/*.spec.ts"],
   "env": {
     "DATABASE_URL": "postgresql://difyflow:password@localhost:15432/difyflow",

@@ -140,7 +140,7 @@ DifyFlow/
 | M1 资产管理 | 2.2.1 | assets view | 已完成 | 2026-04-25 |
 | M2 任务管理 | 2.2.2 | tasks view | 已完成(即时任务) | 2026-04-20 |
 | M3 Dify 智能体管理 | 2.2.3 | agents view | 已完成 | 2026-04-20 |
-| M4 智能体生成器 | 2.2.4 | generator view | 待开发 | - |
+| M4 智能体生成器 | 2.2.4 | generator view | 基本完成 | 2026-04-28 |
 | M5 个人设置 | 2.2.5 | settings view | 已完成 | 2026-04-20 |
 | M6 通用支撑 | 2.2.6 | login page | 已完成 | 2026-04-13 |
 
@@ -795,3 +795,99 @@ DifyFlow/
 - 一致性体验：创建和重命名操作都有相同的名称保护机制
 - 安全性：防止用户创建系统保留的特殊文件夹名称
 
+---
+
+### 2026-04-28 — 优化：定时任务触发时间可视化选择器
+
+**需求背景：**
+定时任务的触发时间原先使用 Cron 表达式文本框（如 `0 8 * * *`），普通用户不会写 Cron 表达式。需要改为可视化选择器，用户只需选择频率和时间，系统自动生成 Cron 表达式。
+
+**实现内容：**
+
+1. **频率选择** — Select 下拉，提供 4 种预设频率：
+   - 每天
+   - 每周（选中后出现星期多选）
+   - 每月（选中后出现日期输入）
+   - 自定义间隔（选中后出现数字 + 单位选择：分钟/小时）
+
+2. **时间选择** — TimePicker 小时:分钟，默认 08:00
+
+3. **星期选择**（仅"每周"）— Checkbox 组：周一~周日
+
+4. **日期输入**（仅"每月"）— InputNumber，1-31
+
+5. **自动生成 Cron** — `buildCron()` 工具函数将用户选择转为标准 Cron 表达式
+
+6. **中文显示** — 任务卡片新增 `cronToLabel()` 工具函数：
+   - `0 8 * * *` → "每天 08:00"
+   - `0 8 * * 1` → "每周一 08:00"
+   - `0 8 1 * *` → "每月 1 日 08:00"
+   - `*/30 * * * *` → "每 30 分钟"
+   - `0 */2 * * *` → "每 2 小时"
+
+**修改文件：**
+- 修改：`packages/client/src/pages/TasksPage.tsx`
+  - 新增 buildCron / cronToLabel 工具函数
+  - 新增 6 个调度状态变量（频率、时间、星期、日期、间隔值、间隔单位）
+  - 替换 Cron 文本框为频率选择 + 时间选择 + 条件显示的辅助输入
+  - handleCreate 中自动生成 cronExpression
+  - TaskCard 中用 cronToLabel 替换原始 Cron 显示
+
+**与原型一致性：** 符合原型设计理念（用户友好的时间选择，而非原始表达式输入）
+
+**遗留问题：** 无
+
+
+---
+
+### 2026-04-28 — M4 模板广场 + 智能体生成器 UI
+
+**需求背景：**
+按计划书 2.2.4 节要求实现 M4 模块。用户提供了 60+ 个 Dify DSL 模板压缩包，需要在模板广场中展示。智能体生成器先实现 UI 壳子，参考原型设计的对话式向导。
+
+**实现内容：**
+
+1. **后端模板 API：**
+   - `template.service.ts` — 扫描 `dsl-templates/` 目录，用 `js-yaml` 解析 YAML 头部提取元数据
+   - `GET /templates` 接口，支持 category 筛选
+
+2. **路由和侧边栏改造：**
+   - `/agents` 改为 SubMenu，包含：智能体管理、模板广场、智能体生成器
+
+3. **模板广场页面（TemplatesPage）：**
+   - 搜索框 + 分类 Tab 筛选
+   - 卡片网格：icon、name、description、mode 标签、分类
+   - 点击卡片弹出 YAML 预览
+
+4. **智能体生成器页面（GeneratorPage）：**
+   - 两面板布局：左侧对话式向导、右侧 YAML 预览
+   - 6 步向导：类型 → 描述 → 输入 → 输出 → 模型 → 生成
+
+**修改文件：**
+- 新增：template.service.ts, template.controller.ts, template.routes.ts, template.api.ts
+- 新增：TemplatesPage.tsx, GeneratorPage.tsx
+- 修改：routes/index.ts, router/index.tsx, AppLayout.tsx
+- 新增：dsl-templates/ 目录（60+ 模板文件）
+
+**遗留问题：** 生成器仅 UI 壳子，实际 DSL 生成逻辑待开发
+
+---
+
+### 2026-04-28 — Bug修复：模板广场图标显示英文名称而非 Emoji
+
+**问题描述：**
+模板广场中"标题党创作"等模板的图标显示为 `face_vomiting` 等英文文本，而非预期的 emoji。原因是 Dify DSL 模板的 `app.icon` 字段有两种格式：直接 emoji 字符（大多数模板）或 Dify 内部图标标识符（如 `clown_face`、`exploding_head`）。
+
+**实现内容：**
+- 在 `template.service.ts` 中新增 `ICON_MAP` 映射表，覆盖 5 种 Dify 图标名称：
+  - `clown_face` → 🤡
+  - `exploding_head` → 🤯
+  - `face_vomiting` → 🤮
+  - `laughing` → 😆
+  - `space_invader` → 👾
+- 新增 `resolveIcon()` 函数：先查映射表，已是 emoji 的直接返回，未知文本名回退为 🤖
+
+**修改文件：**
+- 修改：`packages/server/src/services/template.service.ts`（新增 ICON_MAP + resolveIcon）
+
+**遗留问题：** 无

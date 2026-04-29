@@ -15,8 +15,3 @@ ALTER TABLE "assets" ADD COLUMN "is_permanently_deleted" BOOLEAN NOT NULL DEFAUL
 
 -- Add index on deleted_at
 CREATE INDEX IF NOT EXISTS "assets_deleted_at_idx" ON "assets"("deleted_at");
-
--- Update _prisma_migrations table
-INSERT INTO "_prisma_migrations" ("revision", "name", "rolled_back_at", "started_at", "finished_at", "applied_steps_count")
-VALUES ('20260422_trash_folder', 'add_trash_folder', NULL, NOW(), NOW(), 1)
-ON CONFLICT DO NOTHING;
