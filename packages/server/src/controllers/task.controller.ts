@@ -4,11 +4,11 @@ import * as taskService from '../services/task.service';
 export async function createTask(req: Request, res: Response) {
   try {
     const userId = (req as any).user.userId;
-    const { name, type, agentId, assetIds, prompt, cronExpression } = req.body;
+    const { name, type, agentId, assetIds, prompt, cronExpression, inputs } = req.body;
     if (!name || !agentId || !assetIds?.length) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-    const task = await taskService.createTask(userId, { name, type, agentId, assetIds, prompt, cronExpression });
+    const task = await taskService.createTask(userId, { name, type, agentId, assetIds, prompt, cronExpression, inputs });
     res.status(201).json(task);
   } catch (err: any) {
     res.status(400).json({ error: err.message });

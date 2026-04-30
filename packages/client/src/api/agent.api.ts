@@ -36,3 +36,8 @@ export async function chatTest(id: string, message: string) {
   const { data } = await apiClient.post<{ answer: string }>(`/agents/${id}/chat`, { message });
   return data;
 }
+
+export async function getAgentParameters(id: string) {
+  const { data } = await apiClient.get<{ userInputForm: any[] }>(`/agents/${id}/parameters`);
+  return data;
+}

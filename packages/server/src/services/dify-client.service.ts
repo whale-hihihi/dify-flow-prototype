@@ -9,6 +9,29 @@ function normalizeMode(mode: string): string {
   return 'chat';
 }
 
+export async function fetchDifyParameters(
+  endpoint: string,
+  apiKey: string,
+): Promise<{ userInputForm: any[] }> {
+  const baseUrl = endpoint.replace(/\/$/, '') + '/';
+  const headers = { Authorization: `Bearer ${apiKey}` };
+  try {
+    const paramsUrl = new URL('parameters', baseUrl);
+    const paramsRaw = await httpGet(paramsUrl, headers);
+    const paramsJson = JSON.parse(paramsRaw);
+    return { userInputForm: paramsJson?.user_input_form || [] };
+  } catch {
+    return { userInputForm: [] };
+  }
+}
+
+function isSourceField(variable: string, label: string): boolean {
+  const name = (variable || '').toLowerCase();
+  const lbl = (label || '').toLowerCase();
+  const sourceKw = ['content', 'source', 'document', 'body', 'article', 'passage'];
+  return sourceKw.some(k => name.includes(k) || lbl.includes(k));
+}
+
 export async function testDifyConnection(difyUrl: string, apiKey?: string): Promise<{ success: boolean; latencyMs: number; error?: string }> {
   const start = Date.now();
   return new Promise((resolve) => {
@@ -113,14 +136,14 @@ async function chatWithDifyAgentOnce(
   mode: string,
   textFileContent?: string,
   onProgress?: (progress: number) => void,
+  customInputs?: Record<string, any>,
 ): Promise<{ answer: string }> {
   const baseUrl = endpoint.replace(/\/$/, '') + '/';
   const headers = { Authorization: `Bearer ${apiKey}` };
 
   // Fetch agent parameters to discover input variables
   let inputs: Record<string, any> = {};
-  let fileInputKey: string | null = null;
-  let fileInputType: 'file-list' | 'single-file' | null = null;
+  const fileInputs: Array<{ key: string; type: 'file-list' | 'single-file' }> = [];
   try {
     const paramsUrl = new URL('parameters', baseUrl);
     const paramsRaw = await httpGet(paramsUrl, headers);
@@ -128,34 +151,60 @@ async function chatWithDifyAgentOnce(
     console.log('[chatWithDifyAgent] parameters:', JSON.stringify(paramsJson).slice(0, 500));
     const userInput = paramsJson?.user_input_form;
     if (Array.isArray(userInput)) {
-      let isFirstTextField = true;
+      // Parse all fields and classify by type
+      const allFields: Array<{ varName: string; label: string; fieldType: string; fieldDef: any }> = [];
+
       for (const field of userInput) {
         const typeKey = Object.keys(field)[0];
         const fieldDef = field[typeKey];
         if (!typeKey || !fieldDef) continue;
         const varName = fieldDef.variable || typeKey;
-        if (fieldDef?.type === 'file-list' || fieldDef?.type === 'single-file') {
-          fileInputKey = varName;
-          fileInputType = fieldDef.type;
+        const fieldType = fieldDef.type || typeKey;
+        const label = fieldDef.label || varName;
+
+        if (fieldType === 'file-list' || fieldType === 'single-file') {
+          fileInputs.push({ key: varName, type: fieldType });
         } else {
-          if (isFirstTextField) {
-            inputs[varName] = message;
-            isFirstTextField = false;
-          } else {
-            inputs[varName] = fieldDef?.default || '';
-          }
+          allFields.push({ varName, label, fieldType, fieldDef });
         }
       }
+
+      // Fill each field: customInputs > auto-detect source fields > default
+      const sourceText = textFileContent || '';
+      const prompt = message || '';
+      const hasCustomInputs = customInputs && Object.keys(customInputs).length > 0;
+
+      for (const f of allFields) {
+        // User provided value takes priority
+        if (customInputs?.[f.varName] !== undefined && customInputs[f.varName] !== '') {
+          inputs[f.varName] = customInputs[f.varName];
+        } else if (isSourceField(f.varName, f.label)) {
+          // Source field: auto-fill with file content, fallback to prompt, then default
+          inputs[f.varName] = sourceText || prompt || (f.fieldDef?.default ?? '');
+        } else if (!hasCustomInputs && prompt) {
+          // No customInputs (I/O test): fill first non-source field with prompt
+          if (!Object.values(inputs).some(v => v === prompt)) {
+            inputs[f.varName] = prompt;
+          } else {
+            inputs[f.varName] = f.fieldDef?.default ?? '';
+          }
+        } else {
+          // All other fields: use default
+          inputs[f.varName] = f.fieldDef?.default ?? '';
+        }
+      }
+
+      console.log('[chatWithDifyAgent] mapped inputs:', JSON.stringify(inputs, null, 2));
     }
   } catch (e: any) {
     console.log('[chatWithDifyAgent] parameters fetch failed:', e.message);
   }
 
   // Fallback: if no inputs discovered
-  if (Object.keys(inputs).length === 0 && !fileInputKey) {
-    // Try common Dify workflow input keys
+  if (Object.keys(inputs).length === 0 && fileInputs.length === 0) {
     if (mode === 'workflow') {
-      inputs = { input: message, query: message, text: message };
+      const combined = message + (textFileContent ? '\n\n' + textFileContent : '');
+      inputs = { input: combined, query: combined, text: combined };
     } else {
       inputs = { query: message };
     }
@@ -163,7 +212,7 @@ async function chatWithDifyAgentOnce(
   }
 
   // If workflow with file input, upload text as .txt file to Dify
-  if (mode === 'workflow' && fileInputKey && textFileContent) {
+  if (mode === 'workflow' && fileInputs.length > 0 && textFileContent) {
     try {
       const fileId = await uploadFileToDify(
         baseUrl, apiKey,
@@ -172,14 +221,15 @@ async function chatWithDifyAgentOnce(
         'text/plain',
       );
       console.log('[chatWithDifyAgent] uploaded text file ->', fileId);
-      if (fileInputType === 'single-file') {
-        inputs[fileInputKey] = { type: 'document', transfer_method: 'local_file', upload_file_id: fileId };
-      } else {
-        inputs[fileInputKey] = [{ type: 'document', transfer_method: 'local_file', upload_file_id: fileId }];
+      for (const fi of fileInputs) {
+        const fileRef = { type: 'document', transfer_method: 'local_file', upload_file_id: fileId };
+        inputs[fi.key] = fi.type === 'single-file' ? fileRef : [fileRef];
       }
     } catch (e: any) {
       console.log('[chatWithDifyAgent] file upload failed:', e.message);
-      inputs[fileInputKey] = textFileContent;
+      for (const fi of fileInputs) {
+        inputs[fi.key] = textFileContent;
+      }
     }
   }
 
@@ -309,6 +359,7 @@ export async function chatWithDifyAgent(
   textFileContent?: string,
   onProgress?: (progress: number) => void,
   onModeDetected?: (correctMode: string) => Promise<void>,
+  customInputs?: Record<string, any>,
 ): Promise<{ answer: string }> {
   const normalizedMode = normalizeMode(mode);
   const modesToTry = [normalizedMode, ...DIFY_MODES.filter(m => m !== normalizedMode)];
@@ -316,7 +367,7 @@ export async function chatWithDifyAgent(
   let lastError: Error | null = null;
   for (const tryMode of modesToTry) {
     try {
-      const result = await chatWithDifyAgentOnce(endpoint, apiKey, message, tryMode, textFileContent, onProgress);
+      const result = await chatWithDifyAgentOnce(endpoint, apiKey, message, tryMode, textFileContent, onProgress, customInputs);
       // If the mode was auto-detected (different from original), notify caller
       if (tryMode !== normalizedMode && onModeDetected) {
         await onModeDetected(tryMode);

@@ -74,3 +74,12 @@ export async function chatTest(req: Request, res: Response) {
     res.status(400).json({ error: err.message });
   }
 }
+
+export async function getAgentParameters(req: Request, res: Response) {
+  try {
+    const result = await agentService.getAgentParameters(((req as any).user).userId, req.params.id);
+    res.json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+}

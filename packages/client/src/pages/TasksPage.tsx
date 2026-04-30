@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button, Modal, Form, Input, Select, Tag, message, Spin, TimePicker, InputNumber, Checkbox } from 'antd';
 import { PlusOutlined, DeleteOutlined, RedoOutlined, PauseOutlined, EyeOutlined, CaretRightOutlined } from '@ant-design/icons';
-import { listTasks, createTask, retryTask, cancelTask, deleteTask, toggleScheduled } from '../api/task.api';
-import { listAgents } from '../api/agent.api';
+import { listTasks, createTask, retryTask, cancelTask, deleteTask, toggleScheduled, getTask } from '../api/task.api';
+import { listAgents, getAgentParameters } from '../api/agent.api';
 import { listAssets } from '../api/asset.api';
 import { getAsset } from '../api/asset.api';
 import { useWebSocket } from '../hooks/useWebSocket';
@@ -88,6 +88,14 @@ const TABS = [
   { key: 'scheduled', label: '定时' },
 ];
 
+// Heuristic: detect if a field is for source text (will be auto-filled with file content)
+function isSourceField(variable: string, label: string): boolean {
+  const name = (variable || '').toLowerCase();
+  const lbl = (label || '').toLowerCase();
+  const sourceKw = ['content', 'source', 'document', 'body', 'article', 'passage', '内容', '源', '正文', '原文'];
+  return sourceKw.some(k => name.includes(k) || lbl.includes(k));
+}
+
 export function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -103,6 +111,36 @@ export function TasksPage() {
   const [scheduleMonthDay, setScheduleMonthDay] = useState<number>(1);
   const [scheduleInterval, setScheduleInterval] = useState<number>(30);
   const [scheduleIntervalUnit, setScheduleIntervalUnit] = useState('minute');
+  const [agentFields, setAgentFields] = useState<any[]>([]);
+  const [agentFieldsLoading, setAgentFieldsLoading] = useState(false);
+
+  const handleAgentChange = async (agentId: string) => {
+    setAgentFields([]);
+    if (!agentId) return;
+    setAgentFieldsLoading(true);
+    try {
+      const result = await getAgentParameters(agentId);
+      const fields = (result.userInputForm || []).map((field: any) => {
+        const typeKey = Object.keys(field)[0];
+        const fieldDef = field[typeKey];
+        const variable = fieldDef?.variable || typeKey;
+        const fieldType = fieldDef?.type || typeKey;
+        const label = fieldDef?.label || variable;
+        return { typeKey, fieldDef, variable, fieldType, label };
+      });
+      setAgentFields(fields);
+      // Set default values
+      for (const f of fields) {
+        if (f.fieldDef?.default != null) {
+          form.setFieldValue(`input_${f.variable}`, f.fieldDef.default);
+        }
+      }
+    } catch {
+      setAgentFields([]);
+    } finally {
+      setAgentFieldsLoading(false);
+    }
+  };
 
   const fetchTasks = useCallback(async (showLoading = true) => {
     try {
@@ -120,15 +158,20 @@ export function TasksPage() {
   // WebSocket for real-time progress
   const handleMessage = useCallback((msg: any) => {
     if (msg.type === 'task:progress') {
+      const { taskId, status, progress } = msg.data;
       setTasks((prev) =>
         prev.map((t) =>
-          t.id === msg.data.taskId
-            ? { ...t, status: msg.data.status, _wsProgress: msg.data.progress }
+          t.id === taskId
+            ? { ...t, status, _wsProgress: progress }
             : t
         )
       );
+      // When task finishes, do a full refresh to get items with resultAssetId
+      if (status === 'completed' || status === 'failed') {
+        setTimeout(() => fetchTasks(false), 500);
+      }
     }
-  }, []);
+  }, [fetchTasks]);
 
   useWebSocket(handleMessage);
 
@@ -149,6 +192,7 @@ export function TasksPage() {
     setScheduleMonthDay(1);
     setScheduleInterval(30);
     setScheduleIntervalUnit('minute');
+    setAgentFields([]);
     try {
       const [agentList, assetList] = await Promise.all([
         listAgents(),
@@ -169,13 +213,33 @@ export function TasksPage() {
       const cronExpression = taskType === 'scheduled'
         ? buildCron(scheduleFreq, scheduleTime, scheduleWeekdays, scheduleMonthDay, scheduleInterval, scheduleIntervalUnit)
         : undefined;
+
+      // Collect all dynamic inputs
+      const inputs: Record<string, any> = {};
+      for (const f of agentFields) {
+        const val = values[`input_${f.variable}`];
+        if (val !== undefined && val !== null && val !== '') {
+          inputs[f.variable] = val;
+        }
+      }
+
+      // Extract prompt from the first non-source text/paragraph field for display purposes
+      let prompt = '';
+      for (const f of agentFields) {
+        if (!isSourceField(f.variable, f.label) && (f.fieldType === 'text-input' || f.fieldType === 'paragraph')) {
+          const val = inputs[f.variable];
+          if (val && typeof val === 'string') { prompt = val; break; }
+        }
+      }
+
       await createTask({
         name: values.name,
         type: taskType,
         agentId: values.agentId,
         assetIds: values.assetIds,
-        prompt: values.prompt,
+        prompt: prompt || undefined,
         cronExpression,
+        inputs: Object.keys(inputs).length > 0 ? inputs : undefined,
       });
       message.success('任务创建成功');
       setCreateOpen(false);
@@ -375,12 +439,68 @@ export function TasksPage() {
           )}
 
           <Form.Item label="选择智能体" name="agentId" rules={[{ required: true, message: '请选择智能体' }]}>
-            <Select placeholder="选择智能体" options={agents.map((a) => ({ label: `${a.name} (${a.mode})`, value: a.id }))} />
+            <Select
+              placeholder="选择智能体"
+              options={agents.map((a) => ({ label: `${a.name} (${a.mode})`, value: a.id }))}
+              onChange={handleAgentChange}
+            />
           </Form.Item>
 
-          <Form.Item label="任务指令" name="prompt" rules={[{ required: true, message: '请输入任务指令' }]}>
-            <Input.TextArea rows={2} placeholder="告诉智能体要做什么，如：总结以下文档的核心内容" />
-          </Form.Item>
+          {agentFieldsLoading && (
+            <div style={{ textAlign: 'center', padding: '8px 0', color: '#9CA3B8', fontSize: 13 }}>加载输入参数...</div>
+          )}
+
+          {agentFields.length > 0 && (
+            <div style={{ marginBottom: 16, padding: '12px 16px', background: '#F9FAFB', borderRadius: 10, border: '1px solid #E3E6ED' }}>
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: '#374151' }}>工作流输入参数</div>
+              {agentFields.map((f) => {
+                const isSource = isSourceField(f.variable, f.label);
+                const required = !isSource && f.fieldDef?.required;
+                const labelExtra = isSource ? (
+                  <span style={{ fontSize: 11, color: '#9CA3B8', fontWeight: 400, marginLeft: 6 }}>📎 将自动填入所选文件内容</span>
+                ) : null;
+
+                // File fields: handled by file selector
+                if (f.fieldType === 'file-list' || f.fieldType === 'single-file') {
+                  return (
+                    <div key={f.variable} style={{ marginBottom: 8, padding: '6px 10px', background: '#fff', borderRadius: 6, border: '1px solid #E3E6ED', fontSize: 12, color: '#5F6B80' }}>
+                      📎 <b>{f.label}</b>：执行时自动上传所选文件
+                    </div>
+                  );
+                }
+                if (f.fieldType === 'select') {
+                  const options = Array.isArray(f.fieldDef?.options)
+                    ? f.fieldDef.options.map((o: any) => ({ label: typeof o === 'string' ? o : o.label || o, value: typeof o === 'string' ? o : o.value || o }))
+                    : [];
+                  return (
+                    <Form.Item key={f.variable} label={<span>{f.label} {labelExtra}</span>} name={`input_${f.variable}`} rules={required ? [{ required: true, message: `请选择${f.label}` }] : undefined} style={{ marginBottom: 8 }}>
+                      <Select placeholder={`选择${f.label}...`} options={options} allowClear />
+                    </Form.Item>
+                  );
+                }
+                if (f.fieldType === 'number') {
+                  return (
+                    <Form.Item key={f.variable} label={<span>{f.label} {labelExtra}</span>} name={`input_${f.variable}`} style={{ marginBottom: 8 }}>
+                      <InputNumber min={f.fieldDef?.min} max={f.fieldDef?.max} style={{ width: '100%' }} placeholder={`输入${f.label}...`} />
+                    </Form.Item>
+                  );
+                }
+                if (f.fieldType === 'paragraph') {
+                  return (
+                    <Form.Item key={f.variable} label={<span>{f.label} {labelExtra}</span>} name={`input_${f.variable}`} rules={required ? [{ required: true, message: `请输入${f.label}` }] : undefined} style={{ marginBottom: 8 }}>
+                      <Input.TextArea rows={3} placeholder={isSource ? '执行时自动填入文件内容，也可手动输入...' : `输入${f.label}...`} />
+                    </Form.Item>
+                  );
+                }
+                // text-input and fallback
+                return (
+                  <Form.Item key={f.variable} label={<span>{f.label} {labelExtra}</span>} name={`input_${f.variable}`} rules={required ? [{ required: true, message: `请输入${f.label}` }] : undefined} style={{ marginBottom: 8 }}>
+                    <Input placeholder={`输入${f.label}...`} />
+                  </Form.Item>
+                );
+              })}
+            </div>
+          )}
 
           <Form.Item label="选择文件" name="assetIds" rules={[{ required: true, message: '请选择文件' }]}>
             <Select
@@ -418,15 +538,33 @@ function TaskCard({ task, onRetry, onCancel, onDelete, onToggle }: {
     setResultOpen(true);
     setResultLoading(true);
     try {
-      const resultItems = (task.items || []).filter((item) => item.resultAssetId);
+      let resultItems = (task.items || []).filter((item) => item.resultAssetId);
+
+      // If no results yet but task is completed, items might be stale — refetch
+      if (resultItems.length === 0 && task.status === 'completed') {
+        const freshTask = await getTask(task.id);
+        resultItems = (freshTask.items || []).filter((item: any) => item.resultAssetId);
+      }
+
       if (resultItems.length === 0) {
         setResultText('暂无结果');
         setResultLoading(false);
         return;
       }
+
       // Show task info header
-      let header = `📋 任务指令：${(task as any).prompt || '无'}\n`;
-      header += `🤖 智能体：${task.agent?.name || '未知'}\n`;
+      let header = `🤖 智能体：${task.agent?.name || '未知'}\n`;
+      if ((task as any).prompt) header += `📝 指令：${(task as any).prompt}\n`;
+      // Show inputs
+      const taskInputs = (task as any).inputs;
+      if (taskInputs && typeof taskInputs === 'object') {
+        const inputEntries = Object.entries(taskInputs);
+        if (inputEntries.length > 0) {
+          header += '⚙️ 输入参数：';
+          header += inputEntries.map(([k, v]) => `${k}=${v}`).join(', ');
+          header += '\n';
+        }
+      }
       header += `📄 处理文件：${resultItems.map((i) => i.sourceAsset?.originalName || '未知').join('、')}\n`;
       header += '─'.repeat(40) + '\n\n';
 

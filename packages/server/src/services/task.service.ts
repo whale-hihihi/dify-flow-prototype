@@ -6,9 +6,9 @@ import { addJob, removeJob } from './scheduler.service';
 
 export async function createTask(
   userId: string,
-  data: { name: string; type: string; agentId: string; assetIds: string[]; prompt?: string; cronExpression?: string },
+  data: { name: string; type: string; agentId: string; assetIds: string[]; prompt?: string; cronExpression?: string; inputs?: Record<string, any> },
 ) {
-  const { name, type, agentId, assetIds, prompt, cronExpression } = data;
+  const { name, type, agentId, assetIds, prompt, cronExpression, inputs } = data;
 
   const task = await prisma.task.create({
     data: {
@@ -19,6 +19,7 @@ export async function createTask(
       totalFiles: assetIds.length,
       completedFiles: 0,
       prompt: prompt || null,
+      inputs: inputs || undefined,
       cronExpression: type === 'scheduled' ? cronExpression : null,
       enabled: true,
       items: {
@@ -146,12 +147,11 @@ export async function executeTask(taskId: string, userId: string) {
       if (!asset?.parsedText) throw new Error('Source file has no parsed content');
 
       const userPrompt = task.prompt || '请处理以下内容';
-      const message = `${userPrompt}\n\n${asset.parsedText.slice(0, 10000)}`;
-      const textContent = asset.parsedText || '';
+      const sourceText = asset.parsedText.slice(0, 10000);
 
       const result = await chatWithDifyAgent(
-        task.agent.endpoint, apiKey, message, task.agent.mode,
-        task.agent.mode === 'workflow' ? textContent : undefined,
+        task.agent.endpoint, apiKey, userPrompt, task.agent.mode,
+        sourceText,
         (fileProgress: number) => {
           // Map file-local progress (0-95) into overall progress
           const overallProgress = Math.round(((completed + fileProgress / 100) / total) * 100);
@@ -160,6 +160,7 @@ export async function executeTask(taskId: string, userId: string) {
         async (correctMode: string) => {
           await prisma.agent.update({ where: { id: task.agent.id }, data: { mode: correctMode } });
         },
+        (task.inputs as Record<string, any>) || undefined,
       );
 
       // Save result as new asset

@@ -7,6 +7,11 @@ export async function listTasks(status?: string) {
   return data;
 }
 
+export async function getTask(id: string) {
+  const { data } = await apiClient.get<Task>(`/tasks/${id}`);
+  return data;
+}
+
 export async function createTask(input: {
   name: string;
   type: string;
@@ -14,6 +19,7 @@ export async function createTask(input: {
   assetIds: string[];
   prompt?: string;
   cronExpression?: string;
+  inputs?: Record<string, any>;
 }) {
   const { data } = await apiClient.post<Task>('/tasks', input);
   return data;

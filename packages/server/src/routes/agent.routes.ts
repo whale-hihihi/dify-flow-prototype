@@ -8,6 +8,7 @@ import {
   testAgentConnection,
   checkOnline,
   chatTest,
+  getAgentParameters,
 } from '../controllers/agent.controller';
 import { authMiddleware } from '../middleware/auth';
 
@@ -18,6 +19,7 @@ router.use(authMiddleware);
 router.get('/', listAgents);
 router.get('/check-online', checkOnline);
 router.get('/:id', getAgent);
+router.get('/:id/parameters', getAgentParameters);
 router.post('/', createAgent);
 router.put('/:id', updateAgent);
 router.delete('/:id', deleteAgent);

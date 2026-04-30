@@ -104,6 +104,7 @@ export interface Task {
   completedFiles: number;
   prompt?: string | null;
   cronExpression?: string | null;
+  inputs?: Record<string, any> | null;
   enabled: boolean;
   createdAt: string;
   updatedAt: string;

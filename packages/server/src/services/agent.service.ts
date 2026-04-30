@@ -1,6 +1,6 @@
 import { prisma } from '../config/database';
 import { encrypt, decrypt } from '../utils/crypto';
-import { testDifyConnection, chatWithDifyAgent } from './dify-client.service';
+import { testDifyConnection, chatWithDifyAgent, fetchDifyParameters } from './dify-client.service';
 
 export async function listAgents(userId: string) {
   return prisma.agent.findMany({
@@ -100,6 +100,13 @@ export async function checkAgentsOnline(userId: string) {
     }),
   );
   return prisma.agent.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
+}
+
+export async function getAgentParameters(userId: string, agentId: string) {
+  const agent = await prisma.agent.findFirst({ where: { id: agentId, userId } });
+  if (!agent) throw new Error('Agent not found');
+  const apiKey = decrypt(agent.apiKeyEncrypted, agent.apiKeyIv);
+  return fetchDifyParameters(agent.endpoint, apiKey);
 }
 
 export async function chatTest(userId: string, agentId: string, message: string) {

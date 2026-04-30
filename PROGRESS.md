@@ -950,3 +950,41 @@ DifyFlow/
 **与原型一致性：** 不涉及 UI 变更
 
 **遗留问题：** `.env` 文件中的 ENCRYPTION_KEY 不是有效 64 位 hex，实际密钥在 `nodemon.json` 的 env 中配置
+
+---
+
+### 2026-04-30 — 智能输入映射策略 + 多类型工作流验证
+
+**需求背景：**
+不同 Dify 工作流有不同的输入字段组合（paragraph、text-input、file-list、single-file、select 等），需要一个通用的智能映射策略，自动将用户 prompt 和源文本分配到正确的输入变量。
+
+**实现内容：**
+
+1. **智能输入映射策略**（`dify-client.service.ts`）：
+   - 分类输入字段：paragraph、text-input、file-list/single-file、其他（select 等）
+   - 映射规则：
+     - paragraph + text-input 同时存在：paragraph→源文本，text-input→用户 prompt
+     - 只有 paragraph：第一个接收 prompt + 源文本合并，其余用默认值
+     - 只有 text-input：第一个接收合并内容，其余用默认值
+     - file 类型：上传源文本为 .txt 文件，回退为文本内容
+     - 其他字段：使用 fieldDef.default 或空字符串
+
+2. **Ollama 模型集成**：
+   - 添加 qwen2:7b（4.4GB）作为备选模型，解决 deepseek-r1:8b 长输入挂起问题
+   - 在 Dify provider_models 表中关联 credential_id，使模型出现在工作流编辑器
+
+3. **测试验证**（3 种工作流全部通过 I/O 测试 + 任务执行）：
+
+   | 工作流 | 输入字段组合 | I/O 测试 | 任务执行 | 结果 |
+   |--------|-------------|---------|---------|------|
+   | test-paragraph | paragraph (content) | ✓ | ✓ | 4025 chars |
+   | test-text-paragraph | text-input (prompt) + paragraph (source) | ✓ | ✓ | 2806 chars |
+   | test-multi-field | text-input + paragraph + select | ✓ | ✓ | 344 chars |
+
+**修改文件：**
+- 重构：`packages/server/src/services/dify-client.service.ts`（分类字段 + 智能映射 + 文件上传支持）
+- 修改：`packages/server/src/services/task.service.ts`（prompt 和 sourceText 分离传递 + onModeDetected 回调）
+
+**与原型一致性：** 不涉及 UI 变更，后端输入适配逻辑增强
+
+**遗留问题：** 无

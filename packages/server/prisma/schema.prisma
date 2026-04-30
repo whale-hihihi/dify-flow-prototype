@@ -159,6 +159,7 @@ model Task {
   completedFiles Int       @default(0) @map("completed_files")
   cronExpression String?   @map("cron_expression") @db.VarChar(100)
   prompt         String?   @db.Text
+  inputs         Json?
   enabled        Boolean   @default(true)
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
