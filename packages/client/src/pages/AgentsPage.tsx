@@ -9,6 +9,8 @@ const modeLabels: Record<string, string> = {
   chat: 'Chat',
   completion: 'Completion',
   workflow: 'Workflow',
+  'advanced-chat': 'Advanced Chat',
+  'agent-chat': 'Agent Chat',
 };
 
 const AGENT_ICONS = ['📝', '🎯', '🌐', '📊', '🤖', '🔬', '💡', '🧠'];
@@ -148,6 +150,11 @@ export function AgentsPage() {
     try {
       const result = await chatTest(ioAgent.id, ioMessage);
       setIoAnswer(result.answer);
+      // Re-fetch agent in case mode was auto-corrected
+      const updated = await listAgents();
+      setAgents(updated);
+      const refreshed = updated.find(a => a.id === ioAgent.id);
+      if (refreshed) setIoAgent(refreshed);
     } catch (err: any) {
       setIoAnswer(`错误: ${err.response?.data?.error || err.message}`);
     } finally {
@@ -264,6 +271,8 @@ export function AgentsPage() {
                 <Select.Option value="chat">Chat (对话型)</Select.Option>
                 <Select.Option value="completion">Completion (补全型)</Select.Option>
                 <Select.Option value="workflow">Workflow (工作流型)</Select.Option>
+	                <Select.Option value="advanced-chat">Advanced Chat (高级对话)</Select.Option>
+	                <Select.Option value="agent-chat">Agent Chat (智能体对话)</Select.Option>
               </Select>
             </Form.Item>
           </div>
@@ -308,7 +317,7 @@ export function AgentsPage() {
 
       {/* I/O Test Modal */}
       <Modal
-        title={`I/O 测试 — ${ioAgent?.name || ''}`}
+        title={<span>I/O 测试 — {ioAgent?.name || ''} <Tag color="blue" style={{ fontSize: 11, marginLeft: 8 }}>{modeLabels[ioAgent?.mode || 'chat'] || ioAgent?.mode}</Tag></span>}
         open={ioModalOpen}
         onCancel={() => setIoModalOpen(false)}
         footer={null}

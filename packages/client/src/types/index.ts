@@ -10,7 +10,7 @@ export interface User {
 export interface Agent {
   id: string;
   name: string;
-  mode: 'chat' | 'completion' | 'workflow';
+  mode: 'chat' | 'completion' | 'workflow' | 'advanced-chat' | 'agent-chat';
   description?: string;
   appId: string;
   endpoint: string;

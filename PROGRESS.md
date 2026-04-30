@@ -891,3 +891,62 @@ DifyFlow/
 - 修改：`packages/server/src/services/template.service.ts`（新增 ICON_MAP + resolveIcon）
 
 **遗留问题：** 无
+
+---
+
+### 2026-04-29 — M3 增强：Dify 智能体 IO 适配 — 模式自动检测 + 输入适配
+
+**需求背景：**
+同学在测试智能体 I/O 时遇到 404 错误。原因：不同 Dify 智能体模式（chat/completion/workflow/advanced-chat/agent-chat）对应不同 API 端点，数据库存的 mode 不对就会 404。此外，不同智能体输入字段不同，chatTest 不支持 workflow 文件输入。
+
+**实现内容：**
+
+1. **模式自动检测与重试**（`dify-client.service.ts`）：
+   - 新增 `normalizeMode()` 将 `advanced-chat`/`agent-chat` 映射到 `chat`
+   - 将原 `chatWithDifyAgent` 拆为内部 `chatWithDifyAgentOnce` + 外部重试包装器
+   - 404 时自动尝试其他模式（workflow → completion → chat），首次成功即返回
+   - 新增 `onModeDetected` 回调，通知调用方更新数据库
+   - 改进输入参数处理：第一个文本字段接收用户消息，后续字段用默认值
+
+2. **chatTest 适配**（`agent.service.ts`）：
+   - 传入 `textFileContent: message`（让 workflow 带文件输入的也能测）
+   - 传入 `onModeDetected` 回调，自动纠正数据库中的 mode
+
+3. **任务执行适配**（`task.service.ts`）：
+   - `executeTask` 中传入 `onModeDetected` 回调，任务执行时也能自动纠正 mode
+
+4. **前端扩展**（`AgentsPage.tsx` + `types/index.ts`）：
+   - 支持 5 种 Dify 模式：chat、completion、workflow、advanced-chat、agent-chat
+   - 新建/编辑 Modal 的 Select 新增两个模式选项
+   - I/O 测试 Modal 标题显示当前 mode 标签
+   - 测试成功后刷新智能体列表（获取自动纠正后的 mode）
+
+**修改文件：**
+- 重构：`packages/server/src/services/dify-client.service.ts`（模式重试 + 输入适配 + 错误信息改进）
+- 修改：`packages/server/src/services/agent.service.ts`（chatTest 传 textFileContent + onModeDetected）
+- 修改：`packages/server/src/services/task.service.ts`（executeTask 传 onModeDetected）
+- 修改：`packages/client/src/pages/AgentsPage.tsx`（5 种模式标签 + Select 选项 + I/O Modal 优化）
+- 修改：`packages/client/src/types/index.ts`（Agent.mode 类型扩展）
+
+**与原型一致性：** 不涉及 UI 原型变更，增强后端兼容性和前端模式选项
+
+**遗留问题：** 无
+
+---
+
+### 2026-04-29 Bug 修复：Dify 输入变量名解析 + Workflow 输出提取
+
+**功能：** 修复 workflow 智能体 I/O 测试失败的问题
+
+**原因分析：**
+1. **输入变量名错误**：解析 Dify `/parameters` 接口时，把字段类型名（如 `text-input`）当作输入变量名，实际变量名在 `variable` 字段中（如 `input`），导致请求体为 `{"text-input":"hello"}` 而非 `{"input":"hello"}`
+2. **输出 key 错误**：workflow 完成事件的 `outputs` 对象 key 为 `output`，代码只检查 `text` 和 `result`，导致输出无法正确提取
+3. **测试数据错误**：workflow-test 智能体存入了 chat-test 的 API key（同一个 key 被用于两个不同应用），已在数据库中修正
+
+**修改文件：**
+- 修改：`packages/server/src/services/dify-client.service.ts`（变量名解析用 `fieldDef.variable`，输出提取增加 `outputs?.output` 和 fallback）
+- 数据库：更新 `workflow-test` 的 API key 为正确的值
+
+**与原型一致性：** 不涉及 UI 变更
+
+**遗留问题：** `.env` 文件中的 ENCRYPTION_KEY 不是有效 64 位 hex，实际密钥在 `nodemon.json` 的 env 中配置
