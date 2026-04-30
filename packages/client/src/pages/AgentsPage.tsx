@@ -206,46 +206,50 @@ export function AgentsPage() {
           <p style={{ color: '#9CA3B8' }}>暂无智能体，点击"添加 Dify 智能体"开始接入</p>
         </Card>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(420px, 1fr))', gap: 16 }}>
           {agents.map((agent, idx) => (
             <Card key={agent.id} hoverable style={{ borderRadius: 14 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                <span style={{
-                  width: 44, height: 44, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: '#FEF3C7', border: '1px solid #FDE68A', fontSize: 22,
-                }}>
-                  {AGENT_ICONS[idx % AGENT_ICONS.length]}
-                </span>
-                <Tag color={agent.isOnline ? 'success' : 'default'}>
-                  <span style={{
-                    width: 6, height: 6, borderRadius: '50%', display: 'inline-block',
-                    background: 'currentColor', marginRight: 4,
-                    animation: agent.isOnline ? 'pulse 2s infinite' : 'none',
-                  }} />
-                  {agent.isOnline ? '在线' : '离线'}
-                </Tag>
-              </div>
-              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{agent.name}</div>
-              <div style={{ fontSize: 12, color: '#5F6B80', lineHeight: 1.5, marginBottom: 14 }}>
-                {agent.description || '暂无描述'}
-              </div>
-              <div style={{ display: 'flex', gap: 12, marginBottom: 14, fontSize: 11, color: '#9CA3B8' }}>
-                <span>{modeLabels[agent.mode] || agent.mode}</span>
-                <span>{agent.callCount} 次调用</span>
-              </div>
-              <div style={{ display: 'flex', gap: 8, borderTop: '1px solid #E3E6ED', paddingTop: 14 }}>
-                <Button size="small" icon={<ApiOutlined />} onClick={() => handleTest(agent)}>
-                  连通测试
-                </Button>
-                <Button size="small" icon={<MessageOutlined />} onClick={() => handleIOOpen(agent)}>
-                  I/O 测试
-                </Button>
-                <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(agent)}>
-                  编辑
-                </Button>
-                <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(agent.id)}>
-                  删除
-                </Button>
+              <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <span style={{
+                      width: 44, height: 44, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: '#FEF3C7', border: '1px solid #FDE68A', fontSize: 22,
+                    }}>
+                      {AGENT_ICONS[idx % AGENT_ICONS.length]}
+                    </span>
+                    <Tag color={agent.isOnline ? 'success' : 'default'}>
+                      <span style={{
+                        width: 6, height: 6, borderRadius: '50%', display: 'inline-block',
+                        background: 'currentColor', marginRight: 4,
+                        animation: agent.isOnline ? 'pulse 2s infinite' : 'none',
+                      }} />
+                      {agent.isOnline ? '在线' : '离线'}
+                    </Tag>
+                  </div>
+                  <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{agent.name}</div>
+                  <div style={{ fontSize: 12, color: '#5F6B80', lineHeight: 1.5, marginBottom: 14 }}>
+                    {agent.description || '暂无描述'}
+                  </div>
+                  <div style={{ display: 'flex', gap: 12, marginBottom: 14, fontSize: 11, color: '#9CA3B8' }}>
+                    <span>{modeLabels[agent.mode] || agent.mode}</span>
+                    <span>{agent.callCount} 次调用</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, borderTop: '1px solid #E3E6ED', paddingTop: 14 }}>
+                  <Button size="small" style={{ flex: 1, minWidth: 0 }} icon={<ApiOutlined />} onClick={() => handleTest(agent)}>
+                    连通测试
+                  </Button>
+                  <Button size="small" style={{ flex: 1, minWidth: 0 }} icon={<MessageOutlined />} onClick={() => handleIOOpen(agent)}>
+                    I/O 测试
+                  </Button>
+                  <Button size="small" style={{ flex: 1, minWidth: 0 }} icon={<EditOutlined />} onClick={() => handleEdit(agent)}>
+                    编辑
+                  </Button>
+                  <Button size="small" danger style={{ flex: 1, minWidth: 0 }} icon={<DeleteOutlined />} onClick={() => handleDelete(agent.id)}>
+                    删除
+                  </Button>
+                </div>
               </div>
             </Card>
           ))}
