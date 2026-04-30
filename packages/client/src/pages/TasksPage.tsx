@@ -338,7 +338,9 @@ export function TasksPage() {
         open={createOpen}
         onOk={handleCreate}
         onCancel={() => setCreateOpen(false)}
+        maskClosable={false}
         okText="创建任务"
+        cancelButtonProps={{ style: { display: 'none' } }}
         width={520}
       >
         <Form form={form} layout="vertical">
