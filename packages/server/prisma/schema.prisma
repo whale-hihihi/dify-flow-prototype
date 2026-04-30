@@ -79,15 +79,17 @@ model Folder {
   id        String   @id @default(cuid())
   name      String   @db.VarChar(100)
   isDefault Boolean  @default(false) @map("is_default")
+  isTrash   Boolean  @default(false) @map("is_trash")
   userId    String   @map("user_id")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  assets Asset[]
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assets AssetFolder[]
 
   @@unique([userId, name])
   @@index([userId])
+  @@index([isTrash])
   @@map("folders")
 }
 
@@ -95,32 +97,52 @@ model Folder {
 // M2: Assets (uploaded files with parsed content)
 // ============================================================
 model Asset {
-  id            String    @id @default(cuid())
-  filename      String    @db.VarChar(255)
-  originalName  String    @map("original_name") @db.VarChar(255)
-  fileType      String    @map("file_type") @db.VarChar(20)
-  fileSize      Int       @map("file_size")
-  filePath      String    @map("file_path") @db.VarChar(500)
-  parsedText    String?   @map("parsed_text") @db.Text
-  status        String    @default("uploading") @db.VarChar(20)
-  errorMessage  String?   @map("error_message") @db.Text
-  folderId      String?   @map("folder_id")
-  userId        String    @map("user_id")
-  sourceAssetId String?   @map("source_asset_id") @db.VarChar(50)
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  id                  String    @id @default(cuid())
+  filename            String    @db.VarChar(255)
+  originalName        String    @map("original_name") @db.VarChar(255)
+  fileType            String    @map("file_type") @db.VarChar(20)
+  fileSize            Int       @map("file_size")
+  filePath            String    @map("file_path") @db.VarChar(500)
+  parsedText          String?   @map("parsed_text") @db.Text
+  status              String    @default("uploading") @db.VarChar(20)
+  errorMessage        String?   @map("error_message") @db.Text
+  userId              String    @map("user_id")
+  sourceAssetId       String?   @map("source_asset_id") @db.VarChar(50)
+  originalFolderId    String?   @map("original_folder_id") @db.VarChar(50)
+  deletedAt           DateTime? @map("deleted_at")
+  isPermanentlyDeleted Boolean  @default(false) @map("is_permanently_deleted")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
 
   user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  folder       Folder?    @relation(fields: [folderId], references: [id], onDelete: SetNull)
   sourceFor    TaskItem[] @relation("SourceAsset")
   resultFor    TaskItem[] @relation("ResultAsset")
+  folders      AssetFolder[]
 
   @@index([userId])
-  @@index([folderId])
   @@index([status])
   @@index([fileType])
   @@index([createdAt])
+  @@index([deletedAt])
   @@map("assets")
+}
+
+// ============================================================
+// M2: Asset-Folder relationship (many-to-many)
+// ============================================================
+model AssetFolder {
+  id        String   @id @default(cuid())
+  assetId   String   @map("asset_id")
+  folderId  String   @map("folder_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  asset  Asset  @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  folder Folder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, folderId])
+  @@index([assetId])
+  @@index([folderId])
+  @@map("asset_folders")
 }
 
 // ============================================================

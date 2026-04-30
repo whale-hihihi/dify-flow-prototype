@@ -6,6 +6,8 @@ import assetRoutes from './asset.routes';
 import folderRoutes from './folder.routes';
 import searchRoutes from './search.routes';
 import taskRoutes from './task.routes';
+import templateRoutes from './template.routes';
+import trashRoutes from './trash.routes';
 
 const router = Router();
 
@@ -14,7 +16,9 @@ router.use('/dify-config', difyConfigRoutes);
 router.use('/agents', agentRoutes);
 router.use('/assets', assetRoutes);
 router.use('/folders', folderRoutes);
+router.use('/trash', trashRoutes);
 router.use('/search', searchRoutes);
 router.use('/tasks', taskRoutes);
+router.use('/templates', templateRoutes);
 
 export default router;

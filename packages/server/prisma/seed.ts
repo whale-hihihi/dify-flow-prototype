@@ -19,6 +19,14 @@ async function createUser(username: string, email: string, role: string, passwor
   });
   console.log(`  → default folder: ${folder.name}`);
 
+  // 创建回收站文件夹
+  const trashFolder = await prisma.folder.upsert({
+    where: { userId_name: { userId: user.id, name: '回收站' } },
+    update: {},
+    create: { name: '回收站', isDefault: false, isTrash: true, userId: user.id },
+  });
+  console.log(`  → trash folder: ${trashFolder.name}`);
+
   return user;
 }
 

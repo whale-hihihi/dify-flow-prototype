@@ -10,7 +10,7 @@ export interface User {
 export interface Agent {
   id: string;
   name: string;
-  mode: 'chat' | 'completion' | 'workflow';
+  mode: 'chat' | 'completion' | 'workflow' | 'advanced-chat' | 'agent-chat';
   description?: string;
   appId: string;
   endpoint: string;
@@ -40,9 +40,19 @@ export interface Folder {
   id: string;
   name: string;
   isDefault: boolean;
+  isTrash: boolean;
   assetCount: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface AssetFolder {
+  id: string;
+  assetId: string;
+  folderId: string;
+  createdAt: string;
+  asset?: Asset;
+  folder?: Folder;
 }
 
 export interface Asset {
@@ -57,6 +67,9 @@ export interface Asset {
   errorMessage?: string;
   createdAt: string;
   updatedAt: string;
+  originalFolderId?: string | null;
+  deletedAt?: string | null;
+  isPermanentlyDeleted?: boolean;
 }
 
 export interface PaginatedResponse<T> {

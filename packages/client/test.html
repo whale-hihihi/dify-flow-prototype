@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Page</title>
+</head>
+<body>
+    <h1>Test Page</h1>
+    <div id="status">Loading...</div>
+
+    <script>
+        // Test basic functionality
+        document.getElementById('status').innerHTML = 'JavaScript is working!';
+
+        // Test API connectivity
+        fetch('/api/health')
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('status').innerHTML += '<br>API Status: ' + JSON.stringify(data);
+            })
+            .catch(err => {
+                document.getElementById('status').innerHTML += '<br>API Error: ' + err.message;
+            });
+
+        // Test backend directly
+        fetch('http://localhost:3001/api/health')
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('status').innerHTML += '<br>Direct API: ' + JSON.stringify(data);
+            })
+            .catch(err => {
+                document.getElementById('status').innerHTML += '<br>Direct API Error: ' + err.message;
+            });
+    </script>
+</body>
+</html>

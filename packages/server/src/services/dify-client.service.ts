@@ -1,6 +1,14 @@
 import http from 'http';
 import https from 'https';
 
+const DIFY_MODES = ['workflow', 'completion', 'chat'] as const;
+
+function normalizeMode(mode: string): string {
+  if (mode === 'advanced-chat' || mode === 'agent-chat') return 'chat';
+  if ((DIFY_MODES as readonly string[]).includes(mode)) return mode;
+  return 'chat';
+}
+
 export async function testDifyConnection(difyUrl: string, apiKey?: string): Promise<{ success: boolean; latencyMs: number; error?: string }> {
   const start = Date.now();
   return new Promise((resolve) => {
@@ -58,7 +66,6 @@ function httpGet(url: URL, headers: Record<string, string>): Promise<string> {
   });
 }
 
-// Upload a binary file to Dify's file upload API, returns upload_file_id
 async function uploadFileToDify(baseUrl: string, apiKey: string, fileBuffer: Buffer, filename: string, mimeType: string): Promise<string> {
   const boundary = '----FormBoundary' + Date.now();
 
@@ -99,11 +106,7 @@ async function uploadFileToDify(baseUrl: string, apiKey: string, fileBuffer: Buf
   });
 }
 
-async function uploadTextAsFile(baseUrl: string, apiKey: string, content: string, filename: string): Promise<string> {
-  return uploadFileToDify(baseUrl, apiKey, Buffer.from(content, 'utf-8'), filename, 'text/plain');
-}
-
-export async function chatWithDifyAgent(
+async function chatWithDifyAgentOnce(
   endpoint: string,
   apiKey: string,
   message: string,
@@ -125,15 +128,22 @@ export async function chatWithDifyAgent(
     console.log('[chatWithDifyAgent] parameters:', JSON.stringify(paramsJson).slice(0, 500));
     const userInput = paramsJson?.user_input_form;
     if (Array.isArray(userInput)) {
+      let isFirstTextField = true;
       for (const field of userInput) {
-        const key = Object.keys(field)[0];
-        const fieldDef = field[key];
-        if (!key) continue;
+        const typeKey = Object.keys(field)[0];
+        const fieldDef = field[typeKey];
+        if (!typeKey || !fieldDef) continue;
+        const varName = fieldDef.variable || typeKey;
         if (fieldDef?.type === 'file-list' || fieldDef?.type === 'single-file') {
-          fileInputKey = key;
+          fileInputKey = varName;
           fileInputType = fieldDef.type;
         } else {
-          inputs[key] = message;
+          if (isFirstTextField) {
+            inputs[varName] = message;
+            isFirstTextField = false;
+          } else {
+            inputs[varName] = fieldDef?.default || '';
+          }
         }
       }
     }
@@ -141,10 +151,15 @@ export async function chatWithDifyAgent(
     console.log('[chatWithDifyAgent] parameters fetch failed:', e.message);
   }
 
-  // Fallback: if no inputs discovered, use a sensible default
+  // Fallback: if no inputs discovered
   if (Object.keys(inputs).length === 0 && !fileInputKey) {
-    inputs = { query: message };
-    console.log('[chatWithDifyAgent] no inputs from parameters, using fallback: { query }');
+    // Try common Dify workflow input keys
+    if (mode === 'workflow') {
+      inputs = { input: message, query: message, text: message };
+    } else {
+      inputs = { query: message };
+    }
+    console.log('[chatWithDifyAgent] no inputs from parameters, using fallback:', JSON.stringify(Object.keys(inputs)));
   }
 
   // If workflow with file input, upload text as .txt file to Dify
@@ -164,7 +179,6 @@ export async function chatWithDifyAgent(
       }
     } catch (e: any) {
       console.log('[chatWithDifyAgent] file upload failed:', e.message);
-      // Fallback: put text content directly in the input as plain text
       inputs[fileInputKey] = textFileContent;
     }
   }
@@ -183,7 +197,7 @@ export async function chatWithDifyAgent(
     body = JSON.stringify({ inputs, query: message, response_mode: 'streaming', user: 'difyflow-test' });
   }
 
-  console.log('[chatWithDifyAgent] mode=%s url=%s body=%s', mode, baseUrl + path, body);
+  console.log('[chatWithDifyAgent] mode=%s url=%s body=%s', mode, baseUrl + path, body.slice(0, 300));
 
   return new Promise((resolve, reject) => {
     try {
@@ -194,7 +208,7 @@ export async function chatWithDifyAgent(
         port: url.port,
         path: url.pathname,
         method: 'POST',
-        timeout: 120000,
+        timeout: 300000,
         headers: {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
@@ -208,7 +222,7 @@ export async function chatWithDifyAgent(
           res.on('data', (c) => chunks.push(c));
           res.on('end', () => {
             const raw = Buffer.concat(chunks).toString('utf-8');
-            reject(new Error(`Dify API error: ${res.statusCode} ${raw.slice(0, 200)}`));
+            reject(new Error(`Dify API error: ${res.statusCode} ${raw.slice(0, 300)}`));
           });
           return;
         }
@@ -245,7 +259,7 @@ export async function chatWithDifyAgent(
                     }
                   } else if (event.event === 'workflow_finished') {
                     const outputs = event.data?.outputs;
-                    fullAnswer = outputs?.text || outputs?.result || JSON.stringify(outputs);
+                    fullAnswer = outputs?.text || outputs?.result || outputs?.output || (outputs ? Object.values(outputs)[0] as string : '') || JSON.stringify(outputs);
                   }
                 } else {
                   // chat / completion mode
@@ -253,7 +267,6 @@ export async function chatWithDifyAgent(
                     fullAnswer += event.answer || '';
                     chunkCount++;
                     if (onProgress) {
-                      // Estimate progress: first chunk = 10%, then asymptotically approach 95%
                       onProgress(Math.min(95, 10 + Math.round(85 * (1 - Math.exp(-chunkCount / 8)))));
                     }
                   } else if (event.event === 'message_end') {
@@ -267,7 +280,6 @@ export async function chatWithDifyAgent(
 
         res.on('end', () => {
           if (!fullAnswer) {
-            // Fallback: try to parse buffer as a single JSON (non-streaming response)
             try {
               const json = JSON.parse(buffer);
               fullAnswer = json.answer || json.data?.outputs?.text || JSON.stringify(json);
@@ -287,4 +299,40 @@ export async function chatWithDifyAgent(
       reject(err);
     }
   });
+}
+
+export async function chatWithDifyAgent(
+  endpoint: string,
+  apiKey: string,
+  message: string,
+  mode: string,
+  textFileContent?: string,
+  onProgress?: (progress: number) => void,
+  onModeDetected?: (correctMode: string) => Promise<void>,
+): Promise<{ answer: string }> {
+  const normalizedMode = normalizeMode(mode);
+  const modesToTry = [normalizedMode, ...DIFY_MODES.filter(m => m !== normalizedMode)];
+
+  let lastError: Error | null = null;
+  for (const tryMode of modesToTry) {
+    try {
+      const result = await chatWithDifyAgentOnce(endpoint, apiKey, message, tryMode, textFileContent, onProgress);
+      // If the mode was auto-detected (different from original), notify caller
+      if (tryMode !== normalizedMode && onModeDetected) {
+        await onModeDetected(tryMode);
+      }
+      return result;
+    } catch (err: any) {
+      const errMsg = err.message || '';
+      const isModeError = errMsg.includes('Dify API error: 404')
+        || errMsg.includes('not_workflow_app')
+        || errMsg.includes('not_chat_app')
+        || errMsg.includes('not_completion_app')
+        || errMsg.includes('app mode matches');
+      if (!isModeError) throw err;
+      lastError = err;
+      console.log(`[chatWithDifyAgent] mode=${tryMode} failed: ${errMsg.slice(0, 100)}, trying next...`);
+    }
+  }
+  throw new Error(`所有 Dify 端点均失败。API Key 可能无效或应用不存在。已尝试: ${modesToTry.join(', ')}`);
 }

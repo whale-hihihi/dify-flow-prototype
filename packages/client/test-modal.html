@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modal Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    .test-button {
+      padding: 10px 20px;
+      background-color: #1890ff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .test-button:hover {
+      background-color: #40a9ff;
+    }
+  </style>
+</head>
+<body>
+  <h1>Modal 测试页面</h1>
+  <p>点击下面的按钮测试 Modal 是否正常工作：</p>
+
+  <button class="test-button" onclick="testModal()">测试删除确认对话框</button>
+
+  <div id="result" style="margin-top: 20px; padding: 10px; background: #f0f0f0;"></div>
+
+  <script>
+    function testModal() {
+      console.log('Test button clicked');
+      const resultDiv = document.getElementById('result');
+
+      // 检查是否在React应用环境中
+      if (typeof window !== 'undefined' && window.React && window.antd) {
+        console.log('React and Ant Design are available');
+        resultDiv.innerHTML = '<p style="color: green;">✓ React 和 Ant Design 已加载</p>';
+
+        // 尝试使用 Ant Design Modal
+        try {
+          const { Modal } = window.antd;
+          console.log('Modal component:', Modal);
+          resultDiv.innerHTML += '<p style="color: green;">✓ Modal 组件可用</p>';
+
+          Modal.confirm({
+            title: '删除测试',
+            content: '这是一个测试对话框，确认删除吗？',
+            okType: 'danger',
+            okText: '删除',
+            cancelText: '取消',
+            onOk: () => {
+              console.log('用户点击了确认');
+              resultDiv.innerHTML += '<p style="color: green;">✓ 用户点击了确认</p>';
+            },
+            onCancel: () => {
+              console.log('用户点击了取消');
+              resultDiv.innerHTML += '<p style="color: blue;">✓ 用户点击了取消</p>';
+            },
+          });
+          resultDiv.innerHTML += '<p style="color: green;">✓ Modal.confirm 调用成功</p>';
+        } catch (error) {
+          console.error('Modal 调用失败:', error);
+          resultDiv.innerHTML += '<p style="color: red;">✗ Modal 调用失败: ' + error.message + '</p>';
+        }
+      } else {
+        console.log('React/Ant Design not available');
+        resultDiv.innerHTML = `
+          <p style="color: red;">✗ React 或 Ant Design 未加载</p>
+          <p>请确保在前端开发服务器环境中运行此页面</p>
+        `;
+
+        // 使用原生 confirm 作为后备
+        const result = confirm('这是一个原生确认对话框，删除测试文件夹吗？');
+        if (result) {
+          resultDiv.innerHTML += '<p style="color: green;">✓ 用户点击了确认（原生对话框）</p>';
+        } else {
+          resultDiv.innerHTML += '<p style="color: blue;">✓ 用户点击了取消（原生对话框）</p>';
+        }
+      }
+    }
+  </script>
+</body>
+</html>

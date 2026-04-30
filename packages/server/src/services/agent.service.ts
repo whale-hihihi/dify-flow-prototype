@@ -107,7 +107,14 @@ export async function chatTest(userId: string, agentId: string, message: string)
   if (!agent) throw new Error('Agent not found');
 
   const apiKey = decrypt(agent.apiKeyEncrypted, agent.apiKeyIv);
-  const result = await chatWithDifyAgent(agent.endpoint, apiKey, message, agent.mode);
+  const result = await chatWithDifyAgent(
+    agent.endpoint, apiKey, message, agent.mode,
+    message,
+    undefined,
+    async (correctMode: string) => {
+      await prisma.agent.update({ where: { id: agentId }, data: { mode: correctMode } });
+    },
+  );
 
   await prisma.agent.update({ where: { id: agentId }, data: { callCount: { increment: 1 } } });
 

@@ -157,6 +157,9 @@ export async function executeTask(taskId: string, userId: string) {
           const overallProgress = Math.round(((completed + fileProgress / 100) / total) * 100);
           pushProgress(userId, taskId, 'running', Math.min(99, overallProgress));
         },
+        async (correctMode: string) => {
+          await prisma.agent.update({ where: { id: task.agent.id }, data: { mode: correctMode } });
+        },
       );
 
       // Save result as new asset

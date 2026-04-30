@@ -100,8 +100,12 @@ export async function searchAssets(userId: string, params: SearchParams) {
         fileType: true,
         fileSize: true,
         status: true,
-        folderId: true,
         createdAt: true,
+        folders: {
+          include: {
+            folder: true,
+          },
+        },
       },
     }),
     prisma.asset.count({ where }),

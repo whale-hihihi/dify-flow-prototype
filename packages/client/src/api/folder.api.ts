@@ -19,3 +19,13 @@ export async function renameFolder(id: string, name: string) {
 export async function deleteFolder(id: string) {
   await apiClient.delete(`/folders/${id}`);
 }
+
+export async function deleteOnlineDriveFolder(datasetId: string, folderId: string) {
+  await apiClient.delete(`/datasets/${datasetId}/online-drive/folders?folder_id=${folderId}`);
+}
+
+// 回收站相关API
+export async function emptyTrash() {
+  const { data } = await apiClient.post('/trash/empty');
+  return data;
+}
