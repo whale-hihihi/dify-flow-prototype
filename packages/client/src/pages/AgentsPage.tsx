@@ -283,11 +283,8 @@ export function AgentsPage() {
           <Form.Item label="描述" name="description">
             <Input.TextArea placeholder="简要描述智能体功能..." rows={2} />
           </Form.Item>
-          <Form.Item label="Dify App ID" name="appId" rules={[{ required: true, message: '请输入 App ID' }]}>
-            <Input placeholder="从 Dify 工作室获取" />
-          </Form.Item>
           <Form.Item label="API Key" name="apiKey" rules={editingAgent ? [] : [{ required: true, message: '请输入 API Key' }]}>
-            <Input.Password placeholder="app-..." visibilityToggle />
+            <Input.Password placeholder="从 Dify 应用的「API 访问」页面获取，格式 app-xxx" visibilityToggle />
           </Form.Item>
           <Form.Item label="API 端点" name="endpoint">
             <Input placeholder="http://localhost/v1" />
