@@ -6,9 +6,9 @@ import { addJob, removeJob } from './scheduler.service';
 
 export async function createTask(
   userId: string,
-  data: { name: string; type: string; agentId: string; assetIds: string[]; prompt?: string; cronExpression?: string; inputs?: Record<string, any> },
+  data: { name: string; type: string; agentId: string; assetIds: string[]; prompt?: string; cronExpression?: string; inputs?: Record<string, any>; sourceFields?: string[] },
 ) {
-  const { name, type, agentId, assetIds, prompt, cronExpression, inputs } = data;
+  const { name, type, agentId, assetIds, prompt, cronExpression, inputs, sourceFields } = data;
 
   const task = await prisma.task.create({
     data: {
@@ -20,6 +20,7 @@ export async function createTask(
       completedFiles: 0,
       prompt: prompt || null,
       inputs: inputs || undefined,
+      sourceFields: sourceFields || undefined,
       cronExpression: type === 'scheduled' ? cronExpression : null,
       enabled: true,
       items: {
@@ -161,6 +162,7 @@ export async function executeTask(taskId: string, userId: string) {
           await prisma.agent.update({ where: { id: task.agent.id }, data: { mode: correctMode } });
         },
         (task.inputs as Record<string, any>) || undefined,
+        (task.sourceFields as string[]) || undefined,
       );
 
       // Save result as new asset

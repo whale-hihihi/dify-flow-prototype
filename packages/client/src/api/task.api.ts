@@ -20,6 +20,7 @@ export async function createTask(input: {
   prompt?: string;
   cronExpression?: string;
   inputs?: Record<string, any>;
+  sourceFields?: string[];
 }) {
   const { data } = await apiClient.post<Task>('/tasks', input);
   return data;

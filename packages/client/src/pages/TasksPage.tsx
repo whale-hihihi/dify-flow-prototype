@@ -88,14 +88,6 @@ const TABS = [
   { key: 'scheduled', label: '定时' },
 ];
 
-// Heuristic: detect if a field is for source text (will be auto-filled with file content)
-function isSourceField(variable: string, label: string): boolean {
-  const name = (variable || '').toLowerCase();
-  const lbl = (label || '').toLowerCase();
-  const sourceKw = ['content', 'source', 'document', 'body', 'article', 'passage', '内容', '源', '正文', '原文'];
-  return sourceKw.some(k => name.includes(k) || lbl.includes(k));
-}
-
 export function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,9 +105,11 @@ export function TasksPage() {
   const [scheduleIntervalUnit, setScheduleIntervalUnit] = useState('minute');
   const [agentFields, setAgentFields] = useState<any[]>([]);
   const [agentFieldsLoading, setAgentFieldsLoading] = useState(false);
+  const [sourceFields, setSourceFields] = useState<string[]>([]);
 
   const handleAgentChange = async (agentId: string) => {
     setAgentFields([]);
+    setSourceFields([]);
     if (!agentId) return;
     setAgentFieldsLoading(true);
     try {
@@ -193,6 +187,7 @@ export function TasksPage() {
     setScheduleInterval(30);
     setScheduleIntervalUnit('minute');
     setAgentFields([]);
+    setSourceFields([]);
     try {
       const [agentList, assetList] = await Promise.all([
         listAgents(),
@@ -226,7 +221,7 @@ export function TasksPage() {
       // Extract prompt from the first non-source text/paragraph field for display purposes
       let prompt = '';
       for (const f of agentFields) {
-        if (!isSourceField(f.variable, f.label) && (f.fieldType === 'text-input' || f.fieldType === 'paragraph')) {
+        if (!sourceFields.includes(f.variable) && (f.fieldType === 'text-input' || f.fieldType === 'paragraph')) {
           const val = inputs[f.variable];
           if (val && typeof val === 'string') { prompt = val; break; }
         }
@@ -240,6 +235,7 @@ export function TasksPage() {
         prompt: prompt || undefined,
         cronExpression,
         inputs: Object.keys(inputs).length > 0 ? inputs : undefined,
+        sourceFields: sourceFields.length > 0 ? sourceFields : undefined,
       });
       message.success('任务创建成功');
       setCreateOpen(false);
@@ -456,11 +452,8 @@ export function TasksPage() {
             <div style={{ marginBottom: 16, padding: '12px 16px', background: '#F9FAFB', borderRadius: 10, border: '1px solid #E3E6ED' }}>
               <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: '#374151' }}>工作流输入参数</div>
               {agentFields.map((f) => {
-                const isSource = isSourceField(f.variable, f.label);
+                const isSource = sourceFields.includes(f.variable);
                 const required = !isSource && f.fieldDef?.required;
-                const labelExtra = isSource ? (
-                  <span style={{ fontSize: 11, color: '#9CA3B8', fontWeight: 400, marginLeft: 6 }}>📎 将自动填入所选文件内容</span>
-                ) : null;
 
                 // File fields: handled by file selector
                 if (f.fieldType === 'file-list' || f.fieldType === 'single-file') {
@@ -470,34 +463,58 @@ export function TasksPage() {
                     </div>
                   );
                 }
+
+                const toggleSource = () => {
+                  setSourceFields((prev) =>
+                    prev.includes(f.variable) ? prev.filter(v => v !== f.variable) : [...prev, f.variable]
+                  );
+                };
+
+                const labelExtra = isSource ? (
+                  <span style={{ fontSize: 11, color: '#D97706', fontWeight: 400, marginLeft: 6 }}>📎 将填入文件内容</span>
+                ) : null;
+
+                const fieldLabel = (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span>{f.label} {labelExtra}</span>
+                    <Checkbox
+                      checked={isSource}
+                      onChange={toggleSource}
+                      style={{ fontSize: 11 }}
+                    >
+                      <span style={{ fontSize: 11, color: '#9CA3B8' }}>文件内容</span>
+                    </Checkbox>
+                  </div>
+                );
+
                 if (f.fieldType === 'select') {
                   const options = Array.isArray(f.fieldDef?.options)
                     ? f.fieldDef.options.map((o: any) => ({ label: typeof o === 'string' ? o : o.label || o, value: typeof o === 'string' ? o : o.value || o }))
                     : [];
                   return (
-                    <Form.Item key={f.variable} label={<span>{f.label} {labelExtra}</span>} name={`input_${f.variable}`} rules={required ? [{ required: true, message: `请选择${f.label}` }] : undefined} style={{ marginBottom: 8 }}>
+                    <Form.Item key={f.variable} label={fieldLabel} name={`input_${f.variable}`} rules={required ? [{ required: true, message: `请选择${f.label}` }] : undefined} style={{ marginBottom: 8 }}>
                       <Select placeholder={`选择${f.label}...`} options={options} allowClear />
                     </Form.Item>
                   );
                 }
                 if (f.fieldType === 'number') {
                   return (
-                    <Form.Item key={f.variable} label={<span>{f.label} {labelExtra}</span>} name={`input_${f.variable}`} style={{ marginBottom: 8 }}>
+                    <Form.Item key={f.variable} label={fieldLabel} name={`input_${f.variable}`} style={{ marginBottom: 8 }}>
                       <InputNumber min={f.fieldDef?.min} max={f.fieldDef?.max} style={{ width: '100%' }} placeholder={`输入${f.label}...`} />
                     </Form.Item>
                   );
                 }
                 if (f.fieldType === 'paragraph') {
                   return (
-                    <Form.Item key={f.variable} label={<span>{f.label} {labelExtra}</span>} name={`input_${f.variable}`} rules={required ? [{ required: true, message: `请输入${f.label}` }] : undefined} style={{ marginBottom: 8 }}>
-                      <Input.TextArea rows={3} placeholder={isSource ? '执行时自动填入文件内容，也可手动输入...' : `输入${f.label}...`} />
+                    <Form.Item key={f.variable} label={fieldLabel} name={`input_${f.variable}`} rules={required ? [{ required: true, message: `请输入${f.label}` }] : undefined} style={{ marginBottom: 8 }}>
+                      <Input.TextArea rows={3} placeholder={isSource ? '执行时将填入文件内容...' : `输入${f.label}...`} />
                     </Form.Item>
                   );
                 }
                 // text-input and fallback
                 return (
-                  <Form.Item key={f.variable} label={<span>{f.label} {labelExtra}</span>} name={`input_${f.variable}`} rules={required ? [{ required: true, message: `请输入${f.label}` }] : undefined} style={{ marginBottom: 8 }}>
-                    <Input placeholder={`输入${f.label}...`} />
+                  <Form.Item key={f.variable} label={fieldLabel} name={`input_${f.variable}`} rules={required ? [{ required: true, message: `请输入${f.label}` }] : undefined} style={{ marginBottom: 8 }}>
+                    <Input placeholder={isSource ? '执行时将填入文件内容...' : `输入${f.label}...`} />
                   </Form.Item>
                 );
               })}

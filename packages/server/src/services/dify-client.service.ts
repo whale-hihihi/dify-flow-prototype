@@ -25,13 +25,6 @@ export async function fetchDifyParameters(
   }
 }
 
-function isSourceField(variable: string, label: string): boolean {
-  const name = (variable || '').toLowerCase();
-  const lbl = (label || '').toLowerCase();
-  const sourceKw = ['content', 'source', 'document', 'body', 'article', 'passage'];
-  return sourceKw.some(k => name.includes(k) || lbl.includes(k));
-}
-
 export async function testDifyConnection(difyUrl: string, apiKey?: string): Promise<{ success: boolean; latencyMs: number; error?: string }> {
   const start = Date.now();
   return new Promise((resolve) => {
@@ -137,6 +130,7 @@ async function chatWithDifyAgentOnce(
   textFileContent?: string,
   onProgress?: (progress: number) => void,
   customInputs?: Record<string, any>,
+  sourceFields?: string[],
 ): Promise<{ answer: string }> {
   const baseUrl = endpoint.replace(/\/$/, '') + '/';
   const headers = { Authorization: `Bearer ${apiKey}` };
@@ -169,18 +163,19 @@ async function chatWithDifyAgentOnce(
         }
       }
 
-      // Fill each field: customInputs > auto-detect source fields > default
+      // Fill each field: customInputs > sourceFields (file content) > default
       const sourceText = textFileContent || '';
       const prompt = message || '';
       const hasCustomInputs = customInputs && Object.keys(customInputs).length > 0;
+      const srcFields = sourceFields || [];
 
       for (const f of allFields) {
         // User provided value takes priority
         if (customInputs?.[f.varName] !== undefined && customInputs[f.varName] !== '') {
           inputs[f.varName] = customInputs[f.varName];
-        } else if (isSourceField(f.varName, f.label)) {
-          // Source field: auto-fill with file content, fallback to prompt, then default
-          inputs[f.varName] = sourceText || prompt || (f.fieldDef?.default ?? '');
+        } else if (srcFields.includes(f.varName)) {
+          // User checked "file content" for this field
+          inputs[f.varName] = sourceText || (f.fieldDef?.default ?? '');
         } else if (!hasCustomInputs && prompt) {
           // No customInputs (I/O test): fill first non-source field with prompt
           if (!Object.values(inputs).some(v => v === prompt)) {
@@ -360,6 +355,7 @@ export async function chatWithDifyAgent(
   onProgress?: (progress: number) => void,
   onModeDetected?: (correctMode: string) => Promise<void>,
   customInputs?: Record<string, any>,
+  sourceFields?: string[],
 ): Promise<{ answer: string }> {
   const normalizedMode = normalizeMode(mode);
   const modesToTry = [normalizedMode, ...DIFY_MODES.filter(m => m !== normalizedMode)];
@@ -367,7 +363,7 @@ export async function chatWithDifyAgent(
   let lastError: Error | null = null;
   for (const tryMode of modesToTry) {
     try {
-      const result = await chatWithDifyAgentOnce(endpoint, apiKey, message, tryMode, textFileContent, onProgress, customInputs);
+      const result = await chatWithDifyAgentOnce(endpoint, apiKey, message, tryMode, textFileContent, onProgress, customInputs, sourceFields);
       // If the mode was auto-detected (different from original), notify caller
       if (tryMode !== normalizedMode && onModeDetected) {
         await onModeDetected(tryMode);
