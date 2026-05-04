@@ -6,6 +6,7 @@ import { listAgents, getAgentParameters } from '../api/agent.api';
 import { listAssets } from '../api/asset.api';
 import { getAsset } from '../api/asset.api';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { useStaggerChildren } from '../hooks/usePageAnimation';
 import type { Task, Agent, Asset } from '../types';
 import dayjs from 'dayjs';
 
@@ -75,7 +76,7 @@ function cronToLabel(cron: string): string {
 
 const STATUS_CONFIG: Record<string, { color: string; label: string; dotColor: string }> = {
   pending: { color: '#9CA3B8', label: '等待中', dotColor: '#9CA3B8' },
-  running: { color: '#D97706', label: '运行中', dotColor: '#D97706' },
+  running: { color: '#971E25', label: '运行中', dotColor: '#971E25' },
   completed: { color: '#059669', label: '已完成', dotColor: '#059669' },
   failed: { color: '#DC2626', label: '已失败', dotColor: '#DC2626' },
   canceled: { color: '#9CA3B8', label: '已取消', dotColor: '#9CA3B8' },
@@ -89,6 +90,7 @@ const TABS = [
 ];
 
 export function TasksPage() {
+  const staggerRef = useStaggerChildren('[data-task-card]');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
@@ -284,10 +286,9 @@ export function TasksPage() {
   const runningCount = tasks.filter((t) => t.status === 'running').length;
 
   return (
-    <div>
-      {/* Header */}
+    <div ref={staggerRef}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>任务管理</h2>
+        <h2 className="page-title">任务管理</h2>
         <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>新建任务</Button>
       </div>
 
@@ -300,14 +301,14 @@ export function TasksPage() {
             style={{
               padding: '8px 20px', border: 'none', background: 'none', cursor: 'pointer',
               fontSize: 13, fontWeight: activeTab === tab.key ? 600 : 400,
-              color: activeTab === tab.key ? '#D97706' : '#5F6B80',
-              borderBottom: activeTab === tab.key ? '2px solid #D97706' : '2px solid transparent',
+              color: activeTab === tab.key ? '#971E25' : '#5F6B80',
+              borderBottom: activeTab === tab.key ? '2px solid #971E25' : '2px solid transparent',
               marginBottom: -1, transition: 'all 0.2s',
             }}
           >
             {tab.label}
             {tab.key === 'running' && runningCount > 0 && (
-              <span style={{ marginLeft: 6, background: '#D97706', color: '#fff', borderRadius: 10, padding: '1px 7px', fontSize: 11 }}>{runningCount}</span>
+              <span style={{ marginLeft: 6, background: '#971E25', color: '#fff', borderRadius: 10, padding: '1px 7px', fontSize: 11 }}>{runningCount}</span>
             )}
           </button>
         ))}
@@ -350,17 +351,17 @@ export function TasksPage() {
               <button
                 onClick={() => { setTaskType('immediate'); form.setFieldsValue({ cronExpression: undefined }); }}
                 style={{
-                  flex: 1, padding: '8px 12px', borderRadius: 8, border: `1px solid ${taskType === 'immediate' ? '#D97706' : '#E3E6ED'}`,
+                  flex: 1, padding: '8px 12px', borderRadius: 8, border: `1px solid ${taskType === 'immediate' ? '#971E25' : '#E3E6ED'}`,
                   background: taskType === 'immediate' ? '#FFFBEB' : '#fff', cursor: 'pointer', fontSize: 13,
-                  color: taskType === 'immediate' ? '#D97706' : '#5F6B80',
+                  color: taskType === 'immediate' ? '#971E25' : '#5F6B80',
                 }}
               >即时任务</button>
               <button
                 onClick={() => setTaskType('scheduled')}
                 style={{
-                  flex: 1, padding: '8px 12px', borderRadius: 8, border: `1px solid ${taskType === 'scheduled' ? '#D97706' : '#E3E6ED'}`,
+                  flex: 1, padding: '8px 12px', borderRadius: 8, border: `1px solid ${taskType === 'scheduled' ? '#971E25' : '#E3E6ED'}`,
                   background: taskType === 'scheduled' ? '#FFFBEB' : '#fff', cursor: 'pointer', fontSize: 13,
-                  color: taskType === 'scheduled' ? '#D97706' : '#5F6B80',
+                  color: taskType === 'scheduled' ? '#971E25' : '#5F6B80',
                 }}
               >定时任务</button>
             </div>
@@ -471,7 +472,7 @@ export function TasksPage() {
                 };
 
                 const labelExtra = isSource ? (
-                  <span style={{ fontSize: 11, color: '#D97706', fontWeight: 400, marginLeft: 6 }}>📎 将填入文件内容</span>
+                  <span style={{ fontSize: 11, color: '#971E25', fontWeight: 400, marginLeft: 6 }}>📎 将填入文件内容</span>
                 ) : null;
 
                 const fieldLabel = (
@@ -604,7 +605,7 @@ function TaskCard({ task, onRetry, onCancel, onDelete, onToggle }: {
 
   return (
     <>
-      <div style={{
+      <div data-task-card style={{
         display: 'flex', alignItems: 'center', gap: 16, padding: 18,
         background: '#fff', borderRadius: 14, border: '1px solid #E3E6ED',
         borderLeft: isScheduled ? '3px solid #2563EB' : undefined,
@@ -634,11 +635,11 @@ function TaskCard({ task, onRetry, onCancel, onDelete, onToggle }: {
             <div style={{ width: 140, height: 4, borderRadius: 2, background: '#F3F4F6', overflow: 'hidden' }}>
               <div style={{
                 width: `${progress}%`, height: '100%', borderRadius: 2,
-                background: task.status === 'completed' ? '#059669' : '#D97706',
+                background: task.status === 'completed' ? '#059669' : '#971E25',
                 transition: 'width 0.5s ease',
               }} />
             </div>
-            <span style={{ fontSize: 12, fontWeight: 600, color: task.status === 'completed' ? '#059669' : '#D97706', width: 36 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: task.status === 'completed' ? '#059669' : '#971E25', width: 36 }}>
               {progress}%
             </span>
           </div>

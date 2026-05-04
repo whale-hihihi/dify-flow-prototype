@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Input, Button, Tag } from 'antd';
 import { SendOutlined, CopyOutlined, DownloadOutlined, ReloadOutlined } from '@ant-design/icons';
+import { usePageEnter } from '../hooks/usePageAnimation';
 
 const STEPS = [
   { label: '智能体类型', ai: '你好！我是 DifyFlow 智能体生成助手。请选择你想要创建的智能体类型：', options: ['Chat 对话型', 'Completion 补全型', 'Workflow 工作流型'] },
@@ -12,6 +13,7 @@ const STEPS = [
 ];
 
 export function GeneratorPage() {
+  const pageRef = usePageEnter();
   const [step, setStep] = useState(-1);
   const [messages, setMessages] = useState<{ role: 'ai' | 'user'; text: string }[]>([]);
   const [input, setInput] = useState('');
@@ -49,9 +51,9 @@ export function GeneratorPage() {
   };
 
   return (
-    <div>
+    <div ref={pageRef}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>智能体生成器</h2>
+        <h2 className="page-title">智能体生成器</h2>
         <Button icon={<ReloadOutlined />} onClick={resetGenerator}>重新开始</Button>
       </div>
 
@@ -60,7 +62,7 @@ export function GeneratorPage() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#fff', borderRadius: 14, border: '1px solid #E3E6ED', overflow: 'hidden' }}>
           <div style={{ padding: '12px 16px', borderBottom: '1px solid #E3E6ED', display: 'flex', alignItems: 'center', gap: 8 }}>
             {STEPS.map((_, i) => (
-              <div key={i} style={{ width: 8, height: 8, borderRadius: '50%', background: i <= step ? '#D97706' : '#E3E6ED', transition: 'all 0.3s' }} />
+              <div key={i} style={{ width: 8, height: 8, borderRadius: '50%', background: i <= step ? '#971E25' : '#E3E6ED', transition: 'all 0.3s' }} />
             ))}
           </div>
 
@@ -76,7 +78,7 @@ export function GeneratorPage() {
                 <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start', marginBottom: 12 }}>
                   <div style={{
                     maxWidth: '80%', padding: '10px 14px', borderRadius: 12,
-                    background: msg.role === 'user' ? '#D97706' : '#F3F4F6',
+                    background: msg.role === 'user' ? '#971E25' : '#F3F4F6',
                     color: msg.role === 'user' ? '#fff' : '#1F2937',
                     fontSize: 13, lineHeight: 1.6,
                   }}>
