@@ -21,6 +21,7 @@ export async function listAssets(params?: {
   page?: number;
   pageSize?: number;
   includeDeleted?: boolean;
+  sourceType?: 'uploaded' | 'processed';
 }) {
   const { data } = await apiClient.get<PaginatedResponse<Asset>>('/assets', { params });
   return data;

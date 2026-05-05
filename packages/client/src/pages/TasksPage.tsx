@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Button, Modal, Form, Input, Select, Tag, message, Spin, TimePicker, InputNumber, Checkbox } from 'antd';
+import { Button, Modal, Form, Input, Select, Tag, message, Spin, TimePicker, InputNumber, Checkbox, Tree } from 'antd';
 import { PlusOutlined, DeleteOutlined, RedoOutlined, PauseOutlined, EyeOutlined, CaretRightOutlined } from '@ant-design/icons';
 import { listTasks, createTask, retryTask, cancelTask, deleteTask, toggleScheduled, getTask } from '../api/task.api';
 import { listAgents, getAgentParameters } from '../api/agent.api';
-import { listAssets } from '../api/asset.api';
-import { getAsset } from '../api/asset.api';
+import { listAssets, getAsset } from '../api/asset.api';
+import { listFolders } from '../api/folder.api';
 import { useWebSocket } from '../hooks/useWebSocket';
-import type { Task, Agent, Asset } from '../types';
+import { useStaggerChildren } from '../hooks/usePageAnimation';
+import type { Task, Agent, Asset, Folder } from '../types';
 import dayjs from 'dayjs';
 
 const WEEKDAY_OPTIONS = [
@@ -75,7 +76,7 @@ function cronToLabel(cron: string): string {
 
 const STATUS_CONFIG: Record<string, { color: string; label: string; dotColor: string }> = {
   pending: { color: '#9CA3B8', label: '等待中', dotColor: '#9CA3B8' },
-  running: { color: '#D97706', label: '运行中', dotColor: '#D97706' },
+  running: { color: '#971E25', label: '运行中', dotColor: '#971E25' },
   completed: { color: '#059669', label: '已完成', dotColor: '#059669' },
   failed: { color: '#DC2626', label: '已失败', dotColor: '#DC2626' },
   canceled: { color: '#9CA3B8', label: '已取消', dotColor: '#9CA3B8' },
@@ -89,12 +90,14 @@ const TABS = [
 ];
 
 export function TasksPage() {
+  const staggerRef = useStaggerChildren('[data-task-card]');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
   const [createOpen, setCreateOpen] = useState(false);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
   const [form] = Form.useForm();
   const [taskType, setTaskType] = useState('immediate');
   const [scheduleFreq, setScheduleFreq] = useState('daily');
@@ -106,6 +109,10 @@ export function TasksPage() {
   const [agentFields, setAgentFields] = useState<any[]>([]);
   const [agentFieldsLoading, setAgentFieldsLoading] = useState(false);
   const [sourceFields, setSourceFields] = useState<string[]>([]);
+  const [checkedKeys, setCheckedKeys] = useState<string[]>([]);
+  const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
+  const [folderAssetsMap, setFolderAssetsMap] = useState<Record<string, Asset[]>>({});
+  const [processingMode, setProcessingMode] = useState<'per-file' | 'batch'>('per-file');
 
   const handleAgentChange = async (agentId: string) => {
     setAgentFields([]);
@@ -188,13 +195,34 @@ export function TasksPage() {
     setScheduleIntervalUnit('minute');
     setAgentFields([]);
     setSourceFields([]);
+    setCheckedKeys([]);
+    setFolderAssetsMap({});
+    setProcessingMode('per-file');
     try {
-      const [agentList, assetList] = await Promise.all([
+      const [agentList, assetList, folderList] = await Promise.all([
         listAgents(),
         listAssets({ status: 'ready', pageSize: 100 }),
+        listFolders(),
       ]);
+      const usableFolders = folderList.filter((f: Folder) => !f.isDefault && !f.isTrash);
       setAgents(agentList);
       setAssets(assetList.items || []);
+      setFolders(usableFolders);
+      // Load assets for each folder in parallel
+      const folderResults = await Promise.all(
+        usableFolders.map(async (f: Folder) => {
+          const res = await listAssets({ folderId: f.id, status: 'ready', pageSize: 999 });
+          return { folderId: f.id, assets: (res.items || []) as Asset[] };
+        })
+      );
+      const map: Record<string, Asset[]> = {};
+      folderResults.forEach((r) => { map[r.folderId] = r.assets; });
+      setFolderAssetsMap(map);
+      // Auto-expand all folder nodes
+      setExpandedKeys([
+        'folder-all',
+        ...usableFolders.map((f: Folder) => `folder-${f.id}`),
+      ]);
       setCreateOpen(true);
     } catch (err) {
       console.error('Failed to load data:', err);
@@ -202,9 +230,19 @@ export function TasksPage() {
     }
   };
 
+  const handleTreeCheck = (checked: any) => {
+    const keys: string[] = Array.isArray(checked) ? checked : (checked.checked || []);
+    setCheckedKeys(keys);
+  };
+
   const handleCreate = async () => {
     try {
       const values = await form.validateFields();
+      const assetIds = [...new Set(checkedKeys.filter((k) => !k.startsWith('folder-')))];
+      if (assetIds.length === 0) {
+        message.error('请选择至少一个文件');
+        return;
+      }
       const cronExpression = taskType === 'scheduled'
         ? buildCron(scheduleFreq, scheduleTime, scheduleWeekdays, scheduleMonthDay, scheduleInterval, scheduleIntervalUnit)
         : undefined;
@@ -231,17 +269,21 @@ export function TasksPage() {
         name: values.name,
         type: taskType,
         agentId: values.agentId,
-        assetIds: values.assetIds,
+        assetIds,
         prompt: prompt || undefined,
         cronExpression,
         inputs: Object.keys(inputs).length > 0 ? inputs : undefined,
         sourceFields: sourceFields.length > 0 ? sourceFields : undefined,
+        processingMode,
       });
       message.success('任务创建成功');
       setCreateOpen(false);
       fetchTasks();
     } catch (err: any) {
-      if (err?.response?.data?.error) message.error(err.response.data.error);
+      const errMsg = err?.response?.data?.error;
+      if (errMsg) {
+        Modal.error({ title: '创建失败', content: errMsg });
+      }
     }
   };
 
@@ -284,10 +326,9 @@ export function TasksPage() {
   const runningCount = tasks.filter((t) => t.status === 'running').length;
 
   return (
-    <div>
-      {/* Header */}
+    <div ref={staggerRef}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>任务管理</h2>
+        <h2 className="page-title">任务管理</h2>
         <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>新建任务</Button>
       </div>
 
@@ -300,14 +341,14 @@ export function TasksPage() {
             style={{
               padding: '8px 20px', border: 'none', background: 'none', cursor: 'pointer',
               fontSize: 13, fontWeight: activeTab === tab.key ? 600 : 400,
-              color: activeTab === tab.key ? '#D97706' : '#5F6B80',
-              borderBottom: activeTab === tab.key ? '2px solid #D97706' : '2px solid transparent',
+              color: activeTab === tab.key ? '#971E25' : '#5F6B80',
+              borderBottom: activeTab === tab.key ? '2px solid #971E25' : '2px solid transparent',
               marginBottom: -1, transition: 'all 0.2s',
             }}
           >
             {tab.label}
             {tab.key === 'running' && runningCount > 0 && (
-              <span style={{ marginLeft: 6, background: '#D97706', color: '#fff', borderRadius: 10, padding: '1px 7px', fontSize: 11 }}>{runningCount}</span>
+              <span style={{ marginLeft: 6, background: '#971E25', color: '#fff', borderRadius: 10, padding: '1px 7px', fontSize: 11 }}>{runningCount}</span>
             )}
           </button>
         ))}
@@ -350,17 +391,17 @@ export function TasksPage() {
               <button
                 onClick={() => { setTaskType('immediate'); form.setFieldsValue({ cronExpression: undefined }); }}
                 style={{
-                  flex: 1, padding: '8px 12px', borderRadius: 8, border: `1px solid ${taskType === 'immediate' ? '#D97706' : '#E3E6ED'}`,
+                  flex: 1, padding: '8px 12px', borderRadius: 8, border: `1px solid ${taskType === 'immediate' ? '#971E25' : '#E3E6ED'}`,
                   background: taskType === 'immediate' ? '#FFFBEB' : '#fff', cursor: 'pointer', fontSize: 13,
-                  color: taskType === 'immediate' ? '#D97706' : '#5F6B80',
+                  color: taskType === 'immediate' ? '#971E25' : '#5F6B80',
                 }}
               >即时任务</button>
               <button
                 onClick={() => setTaskType('scheduled')}
                 style={{
-                  flex: 1, padding: '8px 12px', borderRadius: 8, border: `1px solid ${taskType === 'scheduled' ? '#D97706' : '#E3E6ED'}`,
+                  flex: 1, padding: '8px 12px', borderRadius: 8, border: `1px solid ${taskType === 'scheduled' ? '#971E25' : '#E3E6ED'}`,
                   background: taskType === 'scheduled' ? '#FFFBEB' : '#fff', cursor: 'pointer', fontSize: 13,
-                  color: taskType === 'scheduled' ? '#D97706' : '#5F6B80',
+                  color: taskType === 'scheduled' ? '#971E25' : '#5F6B80',
                 }}
               >定时任务</button>
             </div>
@@ -471,7 +512,7 @@ export function TasksPage() {
                 };
 
                 const labelExtra = isSource ? (
-                  <span style={{ fontSize: 11, color: '#D97706', fontWeight: 400, marginLeft: 6 }}>📎 将填入文件内容</span>
+                  <span style={{ fontSize: 11, color: '#971E25', fontWeight: 400, marginLeft: 6 }}>📎 将填入文件内容</span>
                 ) : null;
 
                 const fieldLabel = (
@@ -521,14 +562,75 @@ export function TasksPage() {
             </div>
           )}
 
-          <Form.Item label="选择文件" name="assetIds" rules={[{ required: true, message: '请选择文件' }]}>
-            <Select
-              mode="multiple"
-              placeholder="选择已上传的文件"
-              options={assets.map((a) => ({ label: a.originalName, value: a.id }))}
-              maxTagCount={3}
-            />
-          </Form.Item>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 6 }}>处理模式</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => setProcessingMode('per-file')}
+                style={{
+                  flex: 1, padding: '8px 12px', borderRadius: 8, border: `1px solid ${processingMode === 'per-file' ? '#971E25' : '#E3E6ED'}`,
+                  background: processingMode === 'per-file' ? '#FFFBEB' : '#fff', cursor: 'pointer', fontSize: 13,
+                  color: processingMode === 'per-file' ? '#971E25' : '#5F6B80',
+                }}
+              >分文件处理</button>
+              <button
+                type="button"
+                onClick={() => setProcessingMode('batch')}
+                style={{
+                  flex: 1, padding: '8px 12px', borderRadius: 8, border: `1px solid ${processingMode === 'batch' ? '#971E25' : '#E3E6ED'}`,
+                  background: processingMode === 'batch' ? '#FFFBEB' : '#fff', cursor: 'pointer', fontSize: 13,
+                  color: processingMode === 'batch' ? '#971E25' : '#5F6B80',
+                }}
+              >一次性处理</button>
+            </div>
+            <div style={{ fontSize: 12, color: '#9CA3B8', marginTop: 4 }}>
+              {processingMode === 'per-file' ? '每个文件独立处理，分别生成结果' : '所有文件内容合并处理，生成一个综合结果'}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 6 }}>
+              选择文件
+              {checkedKeys.filter((k) => !k.startsWith('folder-')).length > 0 && (
+                <span style={{ fontSize: 12, fontWeight: 400, color: '#971E25', marginLeft: 8 }}>
+                  已选 {checkedKeys.filter((k) => !k.startsWith('folder-')).length} 个文件
+                </span>
+              )}
+            </div>
+            <div style={{ border: '1px solid #E3E6ED', borderRadius: 8, padding: 8, maxHeight: 260, overflow: 'auto' }}>
+              <Tree
+                checkable
+                checkedKeys={checkedKeys}
+                expandedKeys={expandedKeys}
+                onCheck={(checked) => handleTreeCheck(checked)}
+                onExpand={(keys) => setExpandedKeys(keys as string[])}
+                treeData={(() => {
+                  return [
+                    {
+                      key: 'folder-all',
+                      title: `全部文档 (${assets.length})`,
+                      children: assets.map((a) => ({
+                        key: a.id,
+                        title: a.originalName,
+                        isLeaf: true,
+                      })),
+                    },
+                    ...folders.map((f) => ({
+                      key: `folder-${f.id}`,
+                      title: `${f.name} (${(folderAssetsMap[f.id] || []).length})`,
+                      children: (folderAssetsMap[f.id] || []).map((a) => ({
+                        key: a.id,
+                        title: a.originalName,
+                        isLeaf: true,
+                      })),
+                    })),
+                  ];
+                })()}
+                style={{ fontSize: 13 }}
+              />
+            </div>
+          </div>
         </Form>
       </Modal>
     </div>
@@ -552,29 +654,38 @@ function TaskCard({ task, onRetry, onCancel, onDelete, onToggle }: {
   const [resultOpen, setResultOpen] = useState(false);
   const [resultText, setResultText] = useState('');
   const [resultLoading, setResultLoading] = useState(false);
+  const [resultItems, setResultItems] = useState<any[]>([]);
 
   const handleViewResult = async () => {
     setResultOpen(true);
     setResultLoading(true);
     try {
-      let resultItems = (task.items || []).filter((item) => item.resultAssetId);
-
-      // If no results yet but task is completed, items might be stale — refetch
-      if (resultItems.length === 0 && task.status === 'completed') {
+      // Batch mode: show task.result directly
+      if (task.processingMode === 'batch' && task.status === 'completed') {
         const freshTask = await getTask(task.id);
-        resultItems = (freshTask.items || []).filter((item: any) => item.resultAssetId);
+        setResultText((freshTask as any).result || '暂无结果');
+        setResultItems([]);
+        setResultLoading(false);
+        return;
       }
 
-      if (resultItems.length === 0) {
+      let items = (task.items || []).filter((item: any) => item.result);
+
+      if (items.length === 0 && task.status === 'completed') {
+        const freshTask = await getTask(task.id);
+        items = (freshTask.items || []).filter((item: any) => item.result);
+      }
+
+      setResultItems(items);
+
+      if (items.length === 0) {
         setResultText('暂无结果');
         setResultLoading(false);
         return;
       }
 
-      // Show task info header
       let header = `🤖 智能体：${task.agent?.name || '未知'}\n`;
       if ((task as any).prompt) header += `📝 指令：${(task as any).prompt}\n`;
-      // Show inputs
       const taskInputs = (task as any).inputs;
       if (taskInputs && typeof taskInputs === 'object') {
         const inputEntries = Object.entries(taskInputs);
@@ -584,16 +695,12 @@ function TaskCard({ task, onRetry, onCancel, onDelete, onToggle }: {
           header += '\n';
         }
       }
-      header += `📄 处理文件：${resultItems.map((i) => i.sourceAsset?.originalName || '未知').join('、')}\n`;
+      header += `📄 处理文件：${items.map((i: any) => i.sourceAsset?.originalName || '未知').join('、')}\n`;
       header += '─'.repeat(40) + '\n\n';
 
-      const texts: string[] = [];
-      for (const item of resultItems) {
-        if (item.resultAssetId) {
-          const asset = await getAsset(item.resultAssetId);
-          texts.push(`【${item.sourceAsset?.originalName || '文件'}】\n${asset.parsedText || '无内容'}`);
-        }
-      }
+      const texts = items.map((item: any) =>
+        `【${item.sourceAsset?.originalName || '文件'}】${item.resultAssetId ? ' ✅已自动保存' : ''}\n${item.result}`
+      );
       setResultText(header + texts.join('\n\n---\n\n'));
     } catch {
       setResultText('加载结果失败');
@@ -604,7 +711,7 @@ function TaskCard({ task, onRetry, onCancel, onDelete, onToggle }: {
 
   return (
     <>
-      <div style={{
+      <div data-task-card style={{
         display: 'flex', alignItems: 'center', gap: 16, padding: 18,
         background: '#fff', borderRadius: 14, border: '1px solid #E3E6ED',
         borderLeft: isScheduled ? '3px solid #2563EB' : undefined,
@@ -634,11 +741,11 @@ function TaskCard({ task, onRetry, onCancel, onDelete, onToggle }: {
             <div style={{ width: 140, height: 4, borderRadius: 2, background: '#F3F4F6', overflow: 'hidden' }}>
               <div style={{
                 width: `${progress}%`, height: '100%', borderRadius: 2,
-                background: task.status === 'completed' ? '#059669' : '#D97706',
+                background: task.status === 'completed' ? '#059669' : '#971E25',
                 transition: 'width 0.5s ease',
               }} />
             </div>
-            <span style={{ fontSize: 12, fontWeight: 600, color: task.status === 'completed' ? '#059669' : '#D97706', width: 36 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: task.status === 'completed' ? '#059669' : '#971E25', width: 36 }}>
               {progress}%
             </span>
           </div>
@@ -680,14 +787,21 @@ function TaskCard({ task, onRetry, onCancel, onDelete, onToggle }: {
         {resultLoading ? (
           <Spin style={{ display: 'block', margin: '40px auto' }} />
         ) : (
-          <pre style={{
-            whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-            background: '#F9FAFB', padding: 16, borderRadius: 10,
-            border: '1px solid #E3E6ED', maxHeight: 500, overflow: 'auto',
-            fontSize: 13, lineHeight: 1.6, margin: 0,
-          }}>
-            {resultText}
-          </pre>
+          <>
+            <pre style={{
+              whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+              background: '#F9FAFB', padding: 16, borderRadius: 10,
+              border: '1px solid #E3E6ED', maxHeight: 420, overflow: 'auto',
+              fontSize: 13, lineHeight: 1.6, margin: 0,
+            }}>
+              {resultText}
+            </pre>
+            {task.status === 'completed' && (
+              <div style={{ marginTop: 12, padding: '8px 12px', background: '#F0FDF4', borderRadius: 8, border: '1px solid #BBF7D0', fontSize: 12, color: '#059669' }}>
+                ✅ 结果已自动保存到文件夹「{task.name}」中，可在资产管理中查看
+              </div>
+            )}
+          </>
         )}
       </Modal>
     </>

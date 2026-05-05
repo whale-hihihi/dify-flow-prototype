@@ -1,9 +1,21 @@
 import { useState, useEffect } from 'react';
-import { Input, Tag, Spin, Modal, message } from 'antd';
+import { Input, Tag, Spin, Modal, Button, message } from 'antd';
+import { CopyOutlined, DownloadOutlined } from '@ant-design/icons';
 import { listTemplates, type Template } from '../api/template.api';
+import { useStaggerChildren } from '../hooks/usePageAnimation';
+
+function downloadYaml(content: string, filename: string) {
+  const blob = new Blob([content], { type: 'text/yaml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 const MODE_COLORS: Record<string, string> = {
-  workflow: '#D97706',
+  workflow: '#971E25',
   'advanced-chat': '#2563EB',
   chat: '#059669',
   completion: '#8B5CF6',
@@ -27,6 +39,7 @@ const CATEGORIES = [
 ];
 
 export function TemplatesPage() {
+  const staggerRef = useStaggerChildren('.ant-card');
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCat, setActiveCat] = useState('all');
@@ -46,9 +59,9 @@ export function TemplatesPage() {
     : templates;
 
   return (
-    <div>
+    <div ref={staggerRef}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>模板广场</h2>
+        <h2 className="page-title">模板广场</h2>
         <Input.Search
           placeholder="搜索模板..."
           value={search}
@@ -66,8 +79,8 @@ export function TemplatesPage() {
             style={{
               padding: '8px 20px', border: 'none', background: 'none', cursor: 'pointer',
               fontSize: 13, fontWeight: activeCat === cat.key ? 600 : 400,
-              color: activeCat === cat.key ? '#D97706' : '#5F6B80',
-              borderBottom: activeCat === cat.key ? '2px solid #D97706' : '2px solid transparent',
+              color: activeCat === cat.key ? '#971E25' : '#5F6B80',
+              borderBottom: activeCat === cat.key ? '2px solid #971E25' : '2px solid transparent',
               marginBottom: -1, transition: 'all 0.2s',
             }}
           >
@@ -135,6 +148,10 @@ export function TemplatesPage() {
             }}>
               {previewTpl.yamlContent}
             </pre>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+              <Button size="small" icon={<CopyOutlined />} onClick={() => { navigator.clipboard.writeText(previewTpl.yamlContent); message.success('已复制到剪贴板'); }}>复制 DSL</Button>
+              <Button size="small" type="primary" icon={<DownloadOutlined />} onClick={() => downloadYaml(previewTpl.yamlContent, `${previewTpl.name}.yml`)}>下载 DSL 文件</Button>
+            </div>
           </div>
         )}
       </Modal>

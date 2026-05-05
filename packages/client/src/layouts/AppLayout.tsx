@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Menu, Avatar } from 'antd';
 import type { MenuProps } from 'antd';
@@ -5,11 +6,11 @@ import {
   FolderOutlined,
   RobotOutlined,
   SettingOutlined,
-  ThunderboltOutlined,
   UnorderedListOutlined,
   AppstoreOutlined,
   BulbOutlined,
 } from '@ant-design/icons';
+import { animate } from 'animejs';
 import '../styles/global.css';
 
 const menuItems: MenuProps['items'] = [
@@ -52,37 +53,46 @@ const viewTitles: Record<string, string> = {
 export function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
+  const contentRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLDivElement>(null);
 
   const handleMenuClick: MenuProps['onClick'] = ({ key }) => {
     navigate(key);
   };
 
+  useEffect(() => {
+    if (contentRef.current) {
+      animate(contentRef.current, {
+        opacity: [0, 1],
+        translateY: [16, 0],
+        duration: 500,
+        ease: 'out(3)',
+      });
+    }
+    if (titleRef.current) {
+      animate(titleRef.current, {
+        opacity: [0, 1],
+        translateX: [-12, 0],
+        duration: 400,
+        ease: 'out(3)',
+      });
+    }
+  }, [location.pathname]);
+
   return (
     <div className="app-layout">
       <aside className="app-sidebar">
-        <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #E3E6ED' }}>
-          <h1 style={{ fontSize: 20, fontWeight: 800, letterSpacing: -0.5, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span
-              style={{
-                width: 32,
-                height: 32,
-                background: 'linear-gradient(135deg, #D97706, #F59E0B)',
-                borderRadius: 8,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-                fontSize: 16,
-              }}
-            >
-              <ThunderboltOutlined />
-            </span>
-            Dify<span style={{ color: '#D97706' }}>Flow</span>
-          </h1>
+        <div className="sidebar-brand" style={{ background: 'linear-gradient(135deg, #FDE8E8 0%, #F5D0D0 100%)' }}>
+          <div className="sidebar-brand-inner" style={{ justifyContent: 'flex-start', padding: '8px 10px', gap: 10 }}>
+            <img src="/nudt-emblem.png" alt="NUDT" style={{ height: 40, objectFit: 'contain', flex: '0 0 30%' }} />
+            <div style={{ width: 1, height: 26, background: 'rgba(151,30,37,0.2)', flexShrink: 0 }} />
+            <img src="/project-logo.png" alt="智文坊" style={{ height: 36, objectFit: 'contain', flex: '0 0 60%' }} />
+          </div>
         </div>
-        <nav style={{ flex: 1, padding: '12px 10px' }}>
+        <nav style={{ flex: 1, padding: '12px 10px', overflowY: 'auto' }}>
           <Menu
             mode="inline"
+            theme="dark"
             selectedKeys={[location.pathname]}
             defaultOpenKeys={['/agents']}
             items={menuItems}
@@ -90,23 +100,23 @@ export function AppLayout() {
             style={{ border: 'none', background: 'transparent' }}
           />
         </nav>
-        <div style={{ padding: 12, borderTop: '1px solid #E3E6ED' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10, cursor: 'pointer' }}>
-            <Avatar style={{ background: 'linear-gradient(135deg, #6366F1, #8B5CF6)' }}>管</Avatar>
+        <div className="sidebar-user">
+          <div className="sidebar-user-inner">
+            <Avatar size={36} style={{ background: 'linear-gradient(135deg, var(--nudt-sunrise), var(--nudt-gold))', color: '#5A3E0A', fontWeight: 700 }}>管</Avatar>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>管理员</div>
-              <div style={{ fontSize: 11, color: '#5F6B80' }}>admin</div>
+              <div className="sidebar-user-name">管理员</div>
+              <div className="sidebar-user-role">admin</div>
             </div>
           </div>
         </div>
       </aside>
       <main className="app-main">
         <div className="app-topbar">
-          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: -0.3 }}>
-            {viewTitles[location.pathname] || 'DifyFlow'}
+          <div ref={titleRef} className="app-topbar-title" key={location.pathname} style={{ fontSize: 16, fontWeight: 700, letterSpacing: -0.3 }}>
+            {viewTitles[location.pathname] || '智文坊'}
           </div>
         </div>
-        <div className="app-content">
+        <div className="app-content" ref={contentRef} key={location.pathname}>
           <Outlet />
         </div>
       </main>

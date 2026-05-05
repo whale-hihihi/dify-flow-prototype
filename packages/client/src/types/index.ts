@@ -67,6 +67,9 @@ export interface Asset {
   errorMessage?: string;
   createdAt: string;
   updatedAt: string;
+  sourceAssetId?: string | null;
+  sourceAsset?: { id: string; originalName: string };
+  isProcessed?: boolean;
   originalFolderId?: string | null;
   deletedAt?: string | null;
   isPermanentlyDeleted?: boolean;
@@ -102,6 +105,8 @@ export interface Task {
   agentId: string;
   totalFiles: number;
   completedFiles: number;
+  processingMode?: 'per-file' | 'batch';
+  result?: string | null;
   prompt?: string | null;
   cronExpression?: string | null;
   inputs?: Record<string, any> | null;

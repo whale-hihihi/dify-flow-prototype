@@ -1,6 +1,14 @@
 :root {
-  --sidebar-width: 220px;
+  --sidebar-width: 230px;
   --topbar-height: 56px;
+  --nudt-red: #971E25;
+  --nudt-red-light: #B91629;
+  --nudt-red-dark: #6B1417;
+  --nudt-gold: #C5993E;
+  --nudt-sunrise: #F2D25C;
+  --nudt-gray: #606060;
+  --nudt-tech-blue: #0077C8;
+  --nudt-defense-red: #A00000;
 }
 
 * {
@@ -27,21 +35,161 @@ html, body, #root {
   border-radius: 3px;
 }
 
-/* Ant Design overrides for sidebar-like layout */
+/* Layout */
 .app-layout {
   display: flex;
   height: 100vh;
 }
 
+/* ===== Sidebar ===== */
 .app-sidebar {
   width: var(--sidebar-width);
   flex-shrink: 0;
-  border-right: 1px solid #E3E6ED;
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: linear-gradient(180deg, #7A1820 0%, var(--nudt-red) 40%, var(--nudt-red-dark) 100%);
+  color: #fff;
+  position: relative;
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
+  z-index: 10;
 }
 
+.app-sidebar::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--nudt-sunrise), var(--nudt-gold), var(--nudt-sunrise), transparent);
+}
+
+/* Sidebar brand area */
+.sidebar-brand {
+  padding: 12px 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.sidebar-brand-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sidebar-brand-name {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: #fff;
+  line-height: 1.2;
+}
+
+.sidebar-brand-name span {
+  color: var(--nudt-sunrise);
+  text-shadow: 0 0 12px rgba(242, 210, 92, 0.3);
+}
+
+.sidebar-brand-sub {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: 2px;
+  margin-top: 2px;
+}
+
+/* Menu overrides */
+.app-sidebar .ant-menu {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+}
+
+.app-sidebar .ant-menu-item,
+.app-sidebar .ant-menu-submenu-title {
+  color: rgba(255, 255, 255, 0.7);
+  border-radius: 8px;
+  margin: 2px 0;
+  transition: all 0.25s ease;
+}
+
+.app-sidebar .ant-menu-item:hover,
+.app-sidebar .ant-menu-submenu-title:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateX(2px);
+}
+
+.app-sidebar .ant-menu-item-selected {
+  color: #fff !important;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.06)) !important;
+  box-shadow: inset 3px 0 0 var(--nudt-gold);
+}
+
+.app-sidebar .ant-menu-submenu-selected {
+  color: #fff;
+}
+
+.app-sidebar .ant-menu-sub,
+.app-sidebar .ant-menu-dark .ant-menu-sub,
+.app-sidebar .ant-menu.ant-menu-dark .ant-menu-submenu > .ant-menu-sub {
+  background: rgba(0, 0, 0, 0.1) !important;
+}
+
+.app-sidebar .ant-menu-dark .ant-menu-item,
+.app-sidebar .ant-menu-dark .ant-menu-submenu-title {
+  color: rgba(255, 255, 255, 0.7) !important;
+  border-radius: 8px !important;
+}
+
+.app-sidebar .ant-menu-dark .ant-menu-item:hover,
+.app-sidebar .ant-menu-dark .ant-menu-submenu-title:hover {
+  color: #fff !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.app-sidebar .ant-menu-dark .ant-menu-item-selected {
+  color: #fff !important;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.06)) !important;
+  box-shadow: inset 3px 0 0 var(--nudt-gold) !important;
+}
+
+.app-sidebar .ant-menu-item-selected::after,
+.app-sidebar .ant-menu-submenu-title::after {
+  border-color: var(--nudt-gold) !important;
+}
+
+/* Sidebar user area */
+.sidebar-user {
+  padding: 14px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.sidebar-user-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.sidebar-user-inner:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-user-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.sidebar-user-role {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* ===== Main area ===== */
 .app-main {
   flex: 1;
   display: flex;
@@ -50,17 +198,29 @@ html, body, #root {
   min-width: 0;
 }
 
+/* Topbar */
 .app-topbar {
   height: var(--topbar-height);
-  border-bottom: 1px solid #E3E6ED;
+  border-bottom: 1px solid #E8EBF0;
   display: flex;
   align-items: center;
-  padding: 0 24px;
+  padding: 0 28px;
   gap: 16px;
   background: #fff;
   flex-shrink: 0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 
+.app-topbar-title {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.app-topbar-title.entering {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+/* Content area */
 .app-content {
   flex: 1;
   overflow-y: auto;
@@ -68,31 +228,196 @@ html, body, #root {
   background: #F5F6FA;
 }
 
-/* Login page */
+/* ===== Card hover effects ===== */
+.ant-card-hoverable:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ant-card {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ===== Settings page cards accent ===== */
+.settings-card {
+  border-left: 3px solid var(--nudt-red) !important;
+}
+
+/* ===== Page header style ===== */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16;
+}
+
+.page-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+  position: relative;
+  padding-left: 14px;
+}
+
+.page-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 4px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--nudt-red), var(--nudt-gold));
+}
+
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #C8CDD6;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #A0A8B4;
+}
+
+/* Login page — left-right split */
 .login-container {
   display: flex;
-  align-items: center;
-  justify-content: center;
   height: 100vh;
-  background: #F5F6FA;
+  overflow: hidden;
+  background: #fff;
 }
 
-.login-card {
-  width: 400px;
-  padding: 32px;
+/* Left brand panel: gate photo + red gradient overlay */
+.login-brand {
+  width: 55%;
+  position: relative;
+  background: url('/nudt-gate.jpg') center/cover no-repeat;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
 }
 
-.login-logo {
+.login-brand::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(151,30,37,0.72), rgba(107,20,23,0.55));
+}
+
+.login-brand-content {
+  position: relative;
+  z-index: 1;
   text-align: center;
-  margin-bottom: 32px;
+  color: #fff;
+  padding: 0 40px;
 }
 
-.login-logo h1 {
-  font-size: 28px;
+.login-brand-logo {
+  height: 80px;
+  margin-bottom: 40px;
+  filter: brightness(0) invert(1);
+}
+
+/* XiaoXun calligraphy animations inside brand panel */
+.login-xiaoxun-wrap {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+}
+
+.login-xiaoxun-left,
+.login-xiaoxun-right {
+  opacity: 0;
+}
+
+.login-xiaoxun-left {
+  animation: xiaoXun1 2s ease-out 0.5s forwards;
+}
+
+.login-xiaoxun-right {
+  animation: xiaoXun2 2s ease-out 0.5s forwards;
+}
+
+.login-xiaoxun-left img,
+.login-xiaoxun-right img {
+  height: 150px;
+  filter: drop-shadow(0 2px 16px rgba(0,0,0,0.4));
+}
+
+@keyframes xiaoXun1 {
+  0% { opacity: 0; transform: translate3d(-120%, 0, 0); }
+  100% { opacity: 1; transform: translate3d(0%, 0, 0); }
+}
+
+@keyframes xiaoXun2 {
+  0% { opacity: 0; transform: translate3d(120%, 0, 0); }
+  100% { opacity: 1; transform: translate3d(0%, 0, 0); }
+}
+
+/* Right form panel */
+.login-form-side {
+  width: 45%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+}
+
+.login-form-header {
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.login-form-header h2 {
+  font-size: 26px;
   font-weight: 800;
   letter-spacing: -0.5px;
+  color: #333;
+  margin-bottom: 4px;
 }
 
-.login-logo span {
-  color: #D97706;
+.login-form-header h2 span {
+  color: var(--nudt-red);
+}
+
+.login-form-header p {
+  color: #5F6B80;
+  font-size: 14px;
+}
+
+.login-form-box {
+  width: 100%;
+  max-width: 380px;
+}
+
+/* Responsive: stack on narrow screens */
+@media (max-width: 768px) {
+  .login-container {
+    flex-direction: column;
+  }
+  .login-brand {
+    width: 100%;
+    height: 35vh;
+  }
+  .login-form-side {
+    width: 100%;
+    padding: 24px;
+  }
+  .login-xiaoxun-left img,
+  .login-xiaoxun-right img {
+    height: 100px;
+  }
 }

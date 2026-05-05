@@ -4,6 +4,9 @@ import { getDifyConfig, upsertDifyConfig, testDifyConnection } from '../api/dify
 import { getMe, updateProfile, listUsers, createUser, updateUserRole, deleteUser, resetUserPassword } from '../api/auth.api';
 import { listAgents } from '../api/agent.api';
 import { useAuthStore } from '../stores/authStore';
+import { LogoutOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
+import { useStaggerChildren } from '../hooks/usePageAnimation';
 import type { User, Agent } from '../types';
 
 const AVATAR_COLORS: Record<string, string> = {
@@ -22,14 +25,17 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export function SettingsPage() {
+  const staggerRef = useStaggerChildren('.ant-card');
   return (
-    <div>
-      <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 20 }}>个人设置</h2>
-      <div style={{ maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div ref={staggerRef}>
+      <h2 className="page-title" style={{ marginBottom: 20 }}>个人设置</h2>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 24 }}>
         <DifyConfigPanel />
         <ProfilePanel />
         <NotificationPanel />
-        <TeamManagementPanel />
+        <div style={{ gridColumn: '1 / -1' }}>
+          <TeamManagementPanel />
+        </div>
       </div>
     </div>
   );
@@ -90,7 +96,7 @@ function DifyConfigPanel() {
   if (loading) return <Spin />;
 
   return (
-    <Card style={{ borderRadius: 14 }}>
+    <Card className="settings-card" style={{ borderRadius: 14 }}>
       <h3 style={{ marginBottom: 4 }}>Dify 连接配置</h3>
       <p style={{ fontSize: 12, color: '#5F6B80', marginBottom: 18 }}>配置本地部署的 Dify 服务地址</p>
       <Form.Item label="Dify API 地址" style={{ marginBottom: 16 }}>
@@ -124,6 +130,8 @@ function ProfilePanel() {
   const [saving, setSaving] = useState(false);
   const [agents, setAgents] = useState<Agent[]>([]);
   const setUser = useAuthStore((s) => s.setUser);
+  const logout = useAuthStore((s) => s.logout);
+  const navigate = useNavigate();
 
   useEffect(() => {
     (async () => {
@@ -148,7 +156,7 @@ function ProfilePanel() {
   };
 
   return (
-    <Card style={{ borderRadius: 14 }}>
+    <Card className="settings-card" style={{ borderRadius: 14 }}>
       <h3 style={{ marginBottom: 4 }}>个人信息</h3>
       <p style={{ fontSize: 12, color: '#5F6B80', marginBottom: 18 }}>管理你的账户信息</p>
       <Form form={form} layout="vertical">
@@ -159,7 +167,10 @@ function ProfilePanel() {
         <Form.Item label="默认智能体" name="defaultAgentId" tooltip="新建任务时自动使用该智能体">
           <Select allowClear placeholder="选择默认智能体" options={agents.map((a) => ({ label: a.name, value: a.id }))} />
         </Form.Item>
-        <Button type="primary" loading={saving} onClick={handleSave}>保存</Button>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <Button type="primary" loading={saving} onClick={handleSave}>保存</Button>
+          <Button danger icon={<LogoutOutlined />} onClick={() => { logout(); navigate('/login'); }}>退出登录</Button>
+        </div>
       </Form>
     </Card>
   );
@@ -187,7 +198,7 @@ function NotificationPanel() {
   ];
 
   return (
-    <Card style={{ borderRadius: 14 }}>
+    <Card className="settings-card" style={{ borderRadius: 14 }}>
       <h3 style={{ marginBottom: 4 }}>通知偏好</h3>
       <p style={{ fontSize: 12, color: '#5F6B80', marginBottom: 18 }}>管理系统通知方式</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -332,7 +343,7 @@ function TeamManagementPanel() {
   ];
 
   return (
-    <Card style={{ borderRadius: 14 }}>
+    <Card className="settings-card" style={{ borderRadius: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div>
           <h3 style={{ marginBottom: 4 }}>团队管理</h3>

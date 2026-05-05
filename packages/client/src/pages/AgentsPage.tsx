@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { Card, Button, Modal, Form, Input, Select, Tag, message, Space, Spin, App } from 'antd';
 import { PlusOutlined, LinkOutlined, EditOutlined, DeleteOutlined, ApiOutlined, MessageOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { listAgents, createAgent, updateAgent, deleteAgent, testAgentConnection, checkAgentsOnline, chatTest } from '../api/agent.api';
-import { getDifyConfig } from '../api/dify-config.api';
+import { getDifyConfig, testDifyConnection } from '../api/dify-config.api';
+import { useStaggerChildren } from '../hooks/usePageAnimation';
 import type { Agent } from '../types';
 
 const modeLabels: Record<string, string> = {
@@ -17,6 +18,7 @@ const AGENT_ICONS = ['📝', '🎯', '🌐', '📊', '🤖', '🔬', '💡', '�
 
 export function AgentsPage() {
   const { modal } = App.useApp();
+  const staggerRef = useStaggerChildren('.ant-card');
 
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,11 +52,13 @@ export function AgentsPage() {
   const fetchDifyStatus = async () => {
     try {
       const config = await getDifyConfig();
-      if (config) {
-        setDifyStatus(config.connectionStatus as 'connected' | 'disconnected');
-        setDifyUrl(config.difyUrl);
-      }
-    } catch { /* ignore */ }
+      const url = config?.difyUrl || 'http://localhost/v1';
+      setDifyUrl(url);
+      const result = await testDifyConnection(url);
+      setDifyStatus(result.success ? 'connected' : 'disconnected');
+    } catch {
+      setDifyStatus('unknown');
+    }
   };
 
   useEffect(() => {
@@ -107,7 +111,9 @@ export function AgentsPage() {
       setModalOpen(false);
       fetchAgents();
     } catch (err: any) {
-      if (err.response?.data?.error) message.error(err.response.data.error);
+      const errMsg = err.response?.data?.error || err.message || '操作失败';
+      if (!err.response?.data?.error && err.errorFields) return; // form validation, already shown
+      message.error(errMsg);
     }
   };
 
@@ -167,10 +173,9 @@ export function AgentsPage() {
   const onlineCount = agents.filter((a) => a.isOnline).length;
 
   return (
-    <div>
-      {/* Header */}
+    <div ref={staggerRef}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Dify 智能体管理</h2>
+        <h2 className="page-title">Dify 智能体管理</h2>
         <Space>
           <a href="http://localhost/apps" target="_blank" rel="noreferrer">
             <Button icon={<LinkOutlined />}>进入 Dify 工作室</Button>
@@ -208,13 +213,13 @@ export function AgentsPage() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(420px, 1fr))', gap: 16 }}>
           {agents.map((agent, idx) => (
-            <Card key={agent.id} hoverable style={{ borderRadius: 14 }}>
+            <Card key={agent.id} hoverable style={{ borderRadius: 14, overflow: 'hidden', borderTop: agent.isOnline ? '3px solid #059669' : '3px solid #D0D4DE' }}>
               <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
                     <span style={{
-                      width: 44, height: 44, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: '#FEF3C7', border: '1px solid #FDE68A', fontSize: 22,
+                      width: 46, height: 46, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: 'linear-gradient(135deg, #F5E8EA, #FDF2F3)', border: '1px solid #E0C5C8', fontSize: 22,
                     }}>
                       {AGENT_ICONS[idx % AGENT_ICONS.length]}
                     </span>
@@ -285,6 +290,9 @@ export function AgentsPage() {
           </Form.Item>
           <Form.Item label="API Key" name="apiKey" rules={editingAgent ? [] : [{ required: true, message: '请输入 API Key' }]}>
             <Input.Password placeholder="从 Dify 应用的「API 访问」页面获取，格式 app-xxx" visibilityToggle />
+          </Form.Item>
+          <Form.Item label="App ID" name="appId">
+            <Input placeholder="选填，Dify 应用的 App ID" />
           </Form.Item>
           <Form.Item label="API 端点" name="endpoint">
             <Input placeholder="http://localhost/v1" />

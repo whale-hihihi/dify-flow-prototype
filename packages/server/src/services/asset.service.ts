@@ -170,7 +170,8 @@ export async function listAssets(
     search?: string;
     page?: number;
     pageSize?: number;
-    includeDeleted?: boolean; // 是否包含已删除文件（用于回收站）
+    includeDeleted?: boolean;
+    sourceType?: 'uploaded' | 'processed';
   }
 ) {
   const page = filters.page || 1;
@@ -223,6 +224,13 @@ export async function listAssets(
     where.originalName = { contains: filters.search, mode: 'insensitive' };
   }
 
+  // Filter by source type
+  if (filters.sourceType === 'uploaded') {
+    where.isProcessed = false;
+  } else if (filters.sourceType === 'processed') {
+    where.isProcessed = true;
+  }
+
   // 如果是默认文件夹或没有指定文件夹，需要去重（基于 sourceAssetId）
   if (isDefaultFolder) {
     // 查询所有不重复的文件（只显示原始文件或没有sourceAssetId的文件）
@@ -239,6 +247,8 @@ export async function listAssets(
         createdAt: true,
         updatedAt: true,
         sourceAssetId: true,
+        filePath: true,
+        isProcessed: true,
         folders: {
           include: {
             folder: true,
@@ -247,12 +257,27 @@ export async function listAssets(
       },
     });
 
-    // 去重：只保留 sourceAssetId 为 null 的文件（原始文件）
-    const uniqueAssets = allAssets.filter(asset => !asset.sourceAssetId);
+    // 去重：保留原始上传文件 + 所有处理结果（isProcessed=true）
+    const uniqueAssets = allAssets.filter(asset => asset.isProcessed || !asset.sourceAssetId || !asset.filePath);
     const total = uniqueAssets.length;
     const items = uniqueAssets.slice(skip, skip + pageSize);
 
-    return { items, total, page, pageSize };
+    // Batch load source asset names for result files
+    const sourceIds = [...new Set(items.filter(a => a.sourceAssetId).map(a => a.sourceAssetId!))];
+    let sourceMap: Record<string, { id: string; originalName: string }> = {};
+    if (sourceIds.length > 0) {
+      const sources = await prisma.asset.findMany({
+        where: { id: { in: sourceIds } },
+        select: { id: true, originalName: true },
+      });
+      sources.forEach(s => { sourceMap[s.id] = s; });
+    }
+    const itemsWithSource = items.map(a => ({
+      ...a,
+      sourceAsset: a.sourceAssetId ? sourceMap[a.sourceAssetId] || null : null,
+    }));
+
+    return { items: itemsWithSource, total, page, pageSize };
   }
 
   const [items, total] = await Promise.all([
@@ -270,6 +295,7 @@ export async function listAssets(
         status: true,
         createdAt: true,
         updatedAt: true,
+        sourceAssetId: true,
         folders: {
           include: {
             folder: true,
@@ -280,7 +306,22 @@ export async function listAssets(
     prisma.asset.count({ where }),
   ]);
 
-  return { items, total, page, pageSize };
+  // Batch load source asset names for result files
+  const sourceIds = [...new Set(items.filter(a => a.sourceAssetId).map(a => a.sourceAssetId!))];
+  let sourceMap: Record<string, { id: string; originalName: string }> = {};
+  if (sourceIds.length > 0) {
+    const sources = await prisma.asset.findMany({
+      where: { id: { in: sourceIds } },
+      select: { id: true, originalName: true },
+    });
+    sources.forEach(s => { sourceMap[s.id] = s; });
+  }
+  const itemsWithSource = items.map(a => ({
+    ...a,
+    sourceAsset: a.sourceAssetId ? sourceMap[a.sourceAssetId] || null : null,
+  }));
+
+  return { items: itemsWithSource, total, page, pageSize };
 }
 
 export async function getAsset(userId: string, assetId: string) {

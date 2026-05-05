@@ -8,6 +8,7 @@ import {
 import { listAssets, uploadAssets, deleteAsset, downloadAsset, getAsset, moveAsset, moveAssetWithOverride, copyAsset, copyAssetWithOverride, getAssetFolders, addToFolder, removeFromFolder, moveToTrash, restoreAssets, permanentlyDeleteAssets, listTrashAssets, checkBatchDuplicateFiles } from '../api/asset.api';
 import { listFolders, createFolder, renameFolder, deleteFolder, emptyTrash } from '../api/folder.api';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { useStaggerChildren } from '../hooks/usePageAnimation';
 import type { Asset, Folder } from '../types';
 
 const { Dragger } = Upload;
@@ -39,6 +40,7 @@ const statusConfig: Record<string, { color: string; label: string }> = {
 
 export function AssetsPage() {
   const { modal, message } = App.useApp();
+  const staggerRef = useStaggerChildren('.ant-card');
 
   const [folders, setFolders] = useState<Folder[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
@@ -50,6 +52,7 @@ export function AssetsPage() {
   const [fileTypeFilter, setFileTypeFilter] = useState<string[]>([]);
   const [fileTypeDropdownOpen, setFileTypeDropdownOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [sourceTypeFilter, setSourceTypeFilter] = useState<'uploaded' | 'processed' | undefined>(undefined);
 
   // Preview state
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -141,6 +144,7 @@ export function AssetsPage() {
           search: searchText || undefined,
           page,
           pageSize: 20,
+          sourceType: sourceTypeFilter,
         });
         setAssets(result.items);
         setTotal(result.total);
@@ -153,7 +157,7 @@ export function AssetsPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedFolder, statusFilter, fileTypeFilter, searchText, page, folders]);
+  }, [selectedFolder, statusFilter, fileTypeFilter, searchText, page, folders, sourceTypeFilter]);
 
   useEffect(() => {
     fetchFolders();
@@ -808,7 +812,7 @@ export function AssetsPage() {
   };
 
   return (
-    <div style={{ display: 'flex', gap: 20, height: 'calc(100vh - 104px)' }}>
+    <div ref={staggerRef} style={{ display: 'flex', gap: 20, height: 'calc(100vh - 104px)' }}>
       {/* Folder Tree */}
       <Card
         style={{ width: 240, flexShrink: 0, borderRadius: 14, overflowY: 'auto' }}
@@ -826,7 +830,7 @@ export function AssetsPage() {
             display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
             borderRadius: 6, cursor: 'pointer', fontSize: 13,
             background: !selectedFolder ? 'rgba(217,119,6,0.07)' : 'transparent',
-            color: !selectedFolder ? '#D97706' : '#5F6B80',
+            color: !selectedFolder ? '#971E25' : '#5F6B80',
           }}
         >
           📁 全部文件
@@ -875,7 +879,7 @@ export function AssetsPage() {
                   display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
                   borderRadius: 6, cursor: 'pointer', fontSize: 13,
                   background: selectedFolder === folder.id ? (isTrashFolder ? 'rgba(239,68,68,0.07)' : 'rgba(217,119,6,0.07)') : 'transparent',
-                  color: selectedFolder === folder.id ? (isTrashFolder ? '#EF4444' : '#D97706') : '#5F6B80',
+                  color: selectedFolder === folder.id ? (isTrashFolder ? '#EF4444' : '#971E25') : '#5F6B80',
                 }}
               >
                 {isTrashFolder ? '🗑️' : '📂'} {folder.name}
@@ -900,6 +904,16 @@ export function AssetsPage() {
               { key: 'failed', label: '解析失败' },
             ]}
             style={{ marginBottom: 0 }}
+          />
+          <Select
+            value={sourceTypeFilter || 'all'}
+            onChange={(v) => { setSourceTypeFilter(v === 'all' ? undefined : v); setPage(1); }}
+            style={{ width: 130 }}
+            options={[
+              { label: '全部来源', value: 'all' },
+              { label: '上传文件', value: 'uploaded' },
+              { label: '处理结果', value: 'processed' },
+            ]}
           />
           <Dropdown
             open={fileTypeDropdownOpen}
@@ -1012,9 +1026,9 @@ export function AssetsPage() {
               type={isMultiSelectMode ? "primary" : "default"}
               style={{
                 minWidth: 80,
-                background: isMultiSelectMode ? '#D97706' : 'transparent',
-                borderColor: '#D97706',
-                color: isMultiSelectMode ? '#fff' : '#D97706'
+                background: isMultiSelectMode ? '#971E25' : 'transparent',
+                borderColor: '#971E25',
+                color: isMultiSelectMode ? '#fff' : '#971E25'
               }}
               onClick={() => {
                 if (isMultiSelectMode) {
@@ -1078,7 +1092,7 @@ export function AssetsPage() {
           >
             <p style={{ fontSize: 36, marginBottom: 12 }}>☁️</p>
             <p style={{ fontSize: 14, color: '#5F6B80' }}>
-              拖拽文件到此处，或 <strong style={{ color: '#D97706' }}>点击上传</strong>
+              拖拽文件到此处，或 <strong style={{ color: '#971E25' }}>点击上传</strong>
             </p>
             <p style={{ fontSize: 12, color: '#9CA3B8' }}>支持 PDF、Word、Excel、TXT、Markdown、CSV</p>
           </Dragger>
@@ -1099,7 +1113,7 @@ export function AssetsPage() {
                   hoverable
                   style={{
                     borderRadius: 14,
-                    border: selectedAssets.includes(asset.id) ? '2px solid #D97706' : '1px solid #E3E6ED',
+                    border: selectedAssets.includes(asset.id) ? '2px solid #971E25' : '1px solid #E3E6ED',
                     background: selectedAssets.includes(asset.id) ? 'rgba(217,119,6,0.05)' : '#fff',
                     transform: selectedAssets.includes(asset.id) ? 'scale(1.02)' : 'scale(1)',
                     transition: 'all 0.2s ease'
@@ -1114,8 +1128,8 @@ export function AssetsPage() {
                           width: 16,
                           height: 16,
                           borderRadius: 3,
-                          border: selectedAssets.includes(asset.id) ? '2px solid #D97706' : '1px solid #d9d9d9',
-                          background: selectedAssets.includes(asset.id) ? '#D97706' : 'transparent',
+                          border: selectedAssets.includes(asset.id) ? '2px solid #971E25' : '1px solid #d9d9d9',
+                          background: selectedAssets.includes(asset.id) ? '#971E25' : 'transparent',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -1159,13 +1173,27 @@ export function AssetsPage() {
                         }
                       }}
                     >
-                      <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {asset.originalName}
+                      <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{asset.originalName}</span>
+                        {(asset.sourceAssetId || (asset as any).isProcessed) && (
+                          <Tag
+                            color="blue"
+                            style={{ fontSize: 10, lineHeight: '16px', padding: '0 4px', margin: 0, flexShrink: 0, cursor: 'default' }}
+                            title={asset.sourceAsset ? `来源于: ${asset.sourceAsset.originalName}` : '任务处理结果'}
+                          >
+                            处理结果
+                          </Tag>
+                        )}
                       </div>
                       <div style={{ fontSize: 11, color: '#5F6B80', display: 'flex', gap: 12, alignItems: 'center', whiteSpace: 'nowrap' }}>
                         <span style={{ flexShrink: 0 }}>{formatSize(asset.fileSize)}</span>
                         <span style={{ flexShrink: 0 }}>{formatTime(asset.createdAt)}</span>
                       </div>
+                      {asset.sourceAssetId && asset.sourceAsset && (
+                        <div style={{ fontSize: 10, color: '#9CA3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }}>
+                          来源: {asset.sourceAsset.originalName}
+                        </div>
+                      )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 0}}>
                       <Tag color={st.color}>{st.label}</Tag>
@@ -1379,12 +1407,12 @@ export function AssetsPage() {
               style={{
                 display: 'flex', alignItems: 'center', gap: 10,
                 padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
-                border: !moveFolderId ? '1.5px solid #D97706' : '1px solid #E3E6ED',
+                border: !moveFolderId ? '1.5px solid #971E25' : '1px solid #E3E6ED',
                 background: !moveFolderId ? 'rgba(217,119,6,0.05)' : 'transparent',
               }}
             >
               <span>📁</span>
-              <span style={{ fontSize: 13, fontWeight: !moveFolderId ? 600 : 400, color: !moveFolderId ? '#D97706' : '#5F6B80' }}>
+              <span style={{ fontSize: 13, fontWeight: !moveFolderId ? 600 : 400, color: !moveFolderId ? '#971E25' : '#5F6B80' }}>
                 全部文件（不归类）
               </span>
             </div>
@@ -1396,12 +1424,12 @@ export function AssetsPage() {
               style={{
                 display: 'flex', alignItems: 'center', gap: 10,
                 padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
-                border: moveFolderId === folder.id ? '1.5px solid #D97706' : '1px solid #E3E6ED',
+                border: moveFolderId === folder.id ? '1.5px solid #971E25' : '1px solid #E3E6ED',
                 background: moveFolderId === folder.id ? 'rgba(217,119,6,0.05)' : 'transparent',
               }}
             >
               <span>📂</span>
-              <span style={{ fontSize: 13, fontWeight: moveFolderId === folder.id ? 600 : 400, color: moveFolderId === folder.id ? '#D97706' : '#5F6B80' }}>
+              <span style={{ fontSize: 13, fontWeight: moveFolderId === folder.id ? 600 : 400, color: moveFolderId === folder.id ? '#971E25' : '#5F6B80' }}>
                 {folder.name}
               </span>
               <span style={{ marginLeft: 'auto', fontSize: 11, color: '#9CA3B8' }}>{folder.assetCount} 个文件</span>
@@ -1611,12 +1639,12 @@ export function AssetsPage() {
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10,
                   padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
-                  border: batchMoveFolderId === folder.id ? '1.5px solid #D97706' : '1px solid #E3E6ED',
+                  border: batchMoveFolderId === folder.id ? '1.5px solid #971E25' : '1px solid #E3E6ED',
                   background: batchMoveFolderId === folder.id ? 'rgba(217,119,6,0.05)' : 'transparent',
                 }}
               >
                 <span>📂</span>
-                <span style={{ fontSize: 13, fontWeight: batchMoveFolderId === folder.id ? 600 : 400, color: batchMoveFolderId === folder.id ? '#D97706' : '#5F6B80' }}>
+                <span style={{ fontSize: 13, fontWeight: batchMoveFolderId === folder.id ? 600 : 400, color: batchMoveFolderId === folder.id ? '#971E25' : '#5F6B80' }}>
                   {folder.name}
                 </span>
                 <span style={{ marginLeft: 'auto', fontSize: 11, color: '#9CA3B8' }}>{folder.assetCount} 个文件</span>

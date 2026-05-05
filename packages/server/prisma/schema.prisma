@@ -108,6 +108,7 @@ model Asset {
   errorMessage        String?   @map("error_message") @db.Text
   userId              String    @map("user_id")
   sourceAssetId       String?   @map("source_asset_id") @db.VarChar(50)
+  isProcessed         Boolean   @default(false) @map("is_processed")
   originalFolderId    String?   @map("original_folder_id") @db.VarChar(50)
   deletedAt           DateTime? @map("deleted_at")
   isPermanentlyDeleted Boolean  @default(false) @map("is_permanently_deleted")
@@ -161,6 +162,8 @@ model Task {
   prompt         String?   @db.Text
   inputs         Json?
   sourceFields   Json?
+  processingMode String   @default("per-file") @map("processing_mode") @db.VarChar(20)
+  result         String?  @db.Text
   enabled        Boolean   @default(true)
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
