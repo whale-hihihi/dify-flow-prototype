@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Input, Button, Tag } from 'antd';
+import { Input, Button } from 'antd';
 import { SendOutlined, CopyOutlined, DownloadOutlined, ReloadOutlined } from '@ant-design/icons';
 import { usePageEnter } from '../hooks/usePageAnimation';
+import { useGeneratorStore } from '../stores/generatorStore';
 
 const STEPS = [
   { label: '智能体类型', ai: '你好！我是 DifyFlow 智能体生成助手。请选择你想要创建的智能体类型：', options: ['Chat 对话型', 'Completion 补全型', 'Workflow 工作流型'] },
@@ -14,24 +15,25 @@ const STEPS = [
 
 export function GeneratorPage() {
   const pageRef = usePageEnter();
-  const [step, setStep] = useState(-1);
-  const [messages, setMessages] = useState<{ role: 'ai' | 'user'; text: string }[]>([]);
+  const step = useGeneratorStore((s) => s.step);
+  const messages = useGeneratorStore((s) => s.messages);
+  const yamlOutput = useGeneratorStore((s) => s.yamlOutput);
+  const { setStep, addMessage, setYamlOutput, reset: resetStore } = useGeneratorStore();
   const [input, setInput] = useState('');
-  const [yamlOutput, setYamlOutput] = useState('');
 
   const startGenerator = () => {
     setStep(0);
-    setMessages([{ role: 'ai', text: STEPS[0].ai }]);
+    addMessage({ role: 'ai', text: STEPS[0].ai });
     setYamlOutput('');
   };
 
   const handleSelect = (text: string) => {
-    setMessages((prev) => [...prev, { role: 'user', text }]);
+    addMessage({ role: 'user', text });
     const next = step + 1;
     if (next < STEPS.length) {
       setTimeout(() => {
         setStep(next);
-        setMessages((prev) => [...prev, { role: 'ai', text: STEPS[next].ai }]);
+        addMessage({ role: 'ai', text: STEPS[next].ai });
         if (STEPS[next].generate) {
           setYamlOutput(`app:\n  description: '由 DifyFlow 智能体生成器创建'\n  icon: '\\u{1F916}'\n  mode: workflow\n  name: my-agent\nkind: app\nversion: 0.1.0\nworkflow:\n  graph:\n    edges: []\n    nodes:\n      - data:\n          title: Start\n          type: start\n        id: '1'\n        position:\n          x: 80\n          y: 200\n      - data:\n          model:\n            provider: openai\n          title: LLM\n          type: llm\n        id: '2'\n        position:\n          x: 400\n          y: 200\n      - data:\n          title: End\n          type: end\n        id: '3'\n        position:\n          x: 720\n          y: 200\n`);
         }
@@ -40,14 +42,22 @@ export function GeneratorPage() {
   };
 
   const resetGenerator = () => {
-    setStep(-1);
-    setMessages([]);
+    resetStore();
     setInput('');
-    setYamlOutput('');
   };
 
   const copyYaml = () => {
     navigator.clipboard.writeText(yamlOutput);
+  };
+
+  const downloadYaml = () => {
+    const blob = new Blob([yamlOutput], { type: 'text/yaml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'my-agent.yml';
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -114,8 +124,8 @@ export function GeneratorPage() {
             <span style={{ fontWeight: 600 }}>DSL 预览</span>
             {yamlOutput && (
               <div style={{ display: 'flex', gap: 6 }}>
+                <Button size="small" icon={<DownloadOutlined />} onClick={downloadYaml}>下载</Button>
                 <Button size="small" icon={<CopyOutlined />} onClick={copyYaml}>复制</Button>
-                <Tag color="green">YAML</Tag>
               </div>
             )}
           </div>

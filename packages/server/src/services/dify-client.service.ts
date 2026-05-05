@@ -19,8 +19,10 @@ export async function fetchDifyParameters(
     const paramsUrl = new URL('parameters', baseUrl);
     const paramsRaw = await httpGet(paramsUrl, headers);
     const paramsJson = JSON.parse(paramsRaw);
+    console.log('[fetchDifyParameters] url:', paramsUrl.href, 'user_input_form:', JSON.stringify(paramsJson?.user_input_form || []).slice(0, 300));
     return { userInputForm: paramsJson?.user_input_form || [] };
-  } catch {
+  } catch (e: any) {
+    console.error('[fetchDifyParameters] failed:', baseUrl, e.message);
     return { userInputForm: [] };
   }
 }
@@ -29,7 +31,7 @@ export async function testDifyConnection(difyUrl: string, apiKey?: string): Prom
   const start = Date.now();
   return new Promise((resolve) => {
     try {
-      const url = new URL('/parameters', difyUrl.replace(/\/$/, ''));
+      const url = new URL('parameters', difyUrl.replace(/\/$/, '') + '/');
       const mod = url.protocol === 'https:' ? https : http;
       const options: http.RequestOptions = {
         hostname: url.hostname,

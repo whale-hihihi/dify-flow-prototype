@@ -82,15 +82,11 @@ export function AppLayout() {
   return (
     <div className="app-layout">
       <aside className="app-sidebar">
-        <div className="sidebar-brand">
-          <div className="sidebar-brand-inner">
-            <img src="/nudt-logo-full.svg" alt="NUDT" style={{ height: 32, flexShrink: 0 }} />
-            <div>
-              <h1 className="sidebar-brand-name">
-                Dify<span>Flow</span>
-              </h1>
-              <div className="sidebar-brand-sub">智能文本处理平台</div>
-            </div>
+        <div className="sidebar-brand" style={{ background: 'linear-gradient(135deg, #FDE8E8 0%, #F5D0D0 100%)' }}>
+          <div className="sidebar-brand-inner" style={{ justifyContent: 'flex-start', padding: '8px 10px', gap: 10 }}>
+            <img src="/nudt-emblem.png" alt="NUDT" style={{ height: 40, objectFit: 'contain', flex: '0 0 30%' }} />
+            <div style={{ width: 1, height: 26, background: 'rgba(151,30,37,0.2)', flexShrink: 0 }} />
+            <img src="/project-logo.png" alt="智文坊" style={{ height: 36, objectFit: 'contain', flex: '0 0 60%' }} />
           </div>
         </div>
         <nav style={{ flex: 1, padding: '12px 10px', overflowY: 'auto' }}>
@@ -117,7 +113,7 @@ export function AppLayout() {
       <main className="app-main">
         <div className="app-topbar">
           <div ref={titleRef} className="app-topbar-title" key={location.pathname} style={{ fontSize: 16, fontWeight: 700, letterSpacing: -0.3 }}>
-            {viewTitles[location.pathname] || 'DifyFlow'}
+            {viewTitles[location.pathname] || '智文坊'}
           </div>
         </div>
         <div className="app-content" ref={contentRef} key={location.pathname}>

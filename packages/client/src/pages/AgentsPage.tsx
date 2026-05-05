@@ -111,7 +111,9 @@ export function AgentsPage() {
       setModalOpen(false);
       fetchAgents();
     } catch (err: any) {
-      if (err.response?.data?.error) message.error(err.response.data.error);
+      const errMsg = err.response?.data?.error || err.message || '操作失败';
+      if (!err.response?.data?.error && err.errorFields) return; // form validation, already shown
+      message.error(errMsg);
     }
   };
 
@@ -288,6 +290,9 @@ export function AgentsPage() {
           </Form.Item>
           <Form.Item label="API Key" name="apiKey" rules={editingAgent ? [] : [{ required: true, message: '请输入 API Key' }]}>
             <Input.Password placeholder="从 Dify 应用的「API 访问」页面获取，格式 app-xxx" visibilityToggle />
+          </Form.Item>
+          <Form.Item label="App ID" name="appId">
+            <Input placeholder="选填，Dify 应用的 App ID" />
           </Form.Item>
           <Form.Item label="API 端点" name="endpoint">
             <Input placeholder="http://localhost/v1" />

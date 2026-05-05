@@ -1,7 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Input, Tag, Spin, Modal, message } from 'antd';
+import { Input, Tag, Spin, Modal, Button, message } from 'antd';
+import { CopyOutlined, DownloadOutlined } from '@ant-design/icons';
 import { listTemplates, type Template } from '../api/template.api';
 import { useStaggerChildren } from '../hooks/usePageAnimation';
+
+function downloadYaml(content: string, filename: string) {
+  const blob = new Blob([content], { type: 'text/yaml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 const MODE_COLORS: Record<string, string> = {
   workflow: '#971E25',
@@ -137,6 +148,10 @@ export function TemplatesPage() {
             }}>
               {previewTpl.yamlContent}
             </pre>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+              <Button size="small" icon={<CopyOutlined />} onClick={() => { navigator.clipboard.writeText(previewTpl.yamlContent); message.success('已复制到剪贴板'); }}>复制 DSL</Button>
+              <Button size="small" type="primary" icon={<DownloadOutlined />} onClick={() => downloadYaml(previewTpl.yamlContent, `${previewTpl.name}.yml`)}>下载 DSL 文件</Button>
+            </div>
           </div>
         )}
       </Modal>

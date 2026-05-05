@@ -66,9 +66,8 @@ html, body, #root {
 
 /* Sidebar brand area */
 .sidebar-brand {
-  padding: 20px 16px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(0, 0, 0, 0.08);
+  padding: 12px 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .sidebar-brand-inner {
@@ -326,33 +325,16 @@ html, body, #root {
 }
 
 .login-brand-logo {
-  height: 60px;
-  margin-bottom: 24px;
+  height: 80px;
+  margin-bottom: 40px;
   filter: brightness(0) invert(1);
-}
-
-.login-brand-school {
-  font-size: 42px;
-  font-weight: 800;
-  color: #fff;
-  margin-bottom: 10px;
-  letter-spacing: 4px;
-  text-shadow: 0 2px 12px rgba(0,0,0,0.3);
-}
-
-.login-brand-motto {
-  font-size: 17px;
-  color: rgba(255,255,255,0.85);
-  letter-spacing: 6px;
-  text-shadow: 0 1px 6px rgba(0,0,0,0.2);
 }
 
 /* XiaoXun calligraphy animations inside brand panel */
 .login-xiaoxun-wrap {
   display: flex;
   justify-content: center;
-  gap: 24px;
-  margin-top: 32px;
+  gap: 32px;
 }
 
 .login-xiaoxun-left,
@@ -370,7 +352,7 @@ html, body, #root {
 
 .login-xiaoxun-left img,
 .login-xiaoxun-right img {
-  height: 100px;
+  height: 150px;
   filter: drop-shadow(0 2px 16px rgba(0,0,0,0.4));
 }
 
@@ -434,11 +416,8 @@ html, body, #root {
     width: 100%;
     padding: 24px;
   }
-  .login-brand-school {
-    font-size: 28px;
-  }
   .login-xiaoxun-left img,
   .login-xiaoxun-right img {
-    height: 64px;
+    height: 100px;
   }
 }

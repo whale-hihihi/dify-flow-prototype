@@ -29,11 +29,13 @@ export function SettingsPage() {
   return (
     <div ref={staggerRef}>
       <h2 className="page-title" style={{ marginBottom: 20 }}>个人设置</h2>
-      <div style={{ maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 24 }}>
         <DifyConfigPanel />
         <ProfilePanel />
         <NotificationPanel />
-        <TeamManagementPanel />
+        <div style={{ gridColumn: '1 / -1' }}>
+          <TeamManagementPanel />
+        </div>
       </div>
     </div>
   );

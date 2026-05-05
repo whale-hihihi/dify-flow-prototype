@@ -17,13 +17,12 @@ export async function testConfig(userId: string, difyUrl?: string) {
   let url = difyUrl;
   if (!url) {
     const config = await prisma.difyConfig.findFirst({ where: { userId } });
-    if (!config) return { success: false, error: 'No Dify config found' };
-    url = config.difyUrl;
+    url = config?.difyUrl;
   }
 
-  const result = await testDifyConnection(url);
+  const result = await testDifyConnection(url || 'http://localhost/v1');
 
-  // Update connection status
+  // Update connection status if config exists
   await prisma.difyConfig.updateMany({
     where: { userId },
     data: { connectionStatus: result.success ? 'connected' : 'disconnected' },

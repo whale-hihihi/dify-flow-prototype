@@ -20,7 +20,7 @@ export async function uploadAssets(req: Request, res: Response) {
 
 export async function listAssets(req: Request, res: Response) {
   try {
-    const { folderId, status, fileType, search, page, pageSize, includeDeleted } = req.query as any;
+    const { folderId, status, fileType, search, page, pageSize, includeDeleted, sourceType } = req.query as any;
     const result = await assetService.listAssets(((req as any).user).userId, {
       folderId,
       status,
@@ -29,6 +29,7 @@ export async function listAssets(req: Request, res: Response) {
       page: page ? parseInt(page) : undefined,
       pageSize: pageSize ? parseInt(pageSize) : undefined,
       includeDeleted: includeDeleted === 'true',
+      sourceType,
     });
     res.json(result);
   } catch (err: any) {

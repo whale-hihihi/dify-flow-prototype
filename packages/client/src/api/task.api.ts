@@ -21,6 +21,7 @@ export async function createTask(input: {
   cronExpression?: string;
   inputs?: Record<string, any>;
   sourceFields?: string[];
+  processingMode?: string;
 }) {
   const { data } = await apiClient.post<Task>('/tasks', input);
   return data;
@@ -43,5 +44,10 @@ export async function deleteTask(id: string) {
 
 export async function toggleScheduled(id: string, enabled: boolean) {
   const { data } = await apiClient.put<Task>(`/tasks/${id}/toggle`, { enabled });
+  return data;
+}
+
+export async function saveResultToAsset(taskId: string, taskItemId: string) {
+  const { data } = await apiClient.post(`/tasks/${taskId}/save-result`, { taskItemId });
   return data;
 }

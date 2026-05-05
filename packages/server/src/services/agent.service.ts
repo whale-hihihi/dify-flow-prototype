@@ -19,7 +19,7 @@ interface CreateAgentData {
   name: string;
   mode: string;
   description?: string;
-  appId: string;
+  appId?: string;
   apiKey: string;
   endpoint?: string;
 }
@@ -31,7 +31,7 @@ export async function createAgent(userId: string, data: CreateAgentData) {
       name: data.name,
       mode: data.mode,
       description: data.description,
-      appId: data.appId,
+      appId: data.appId || '',
       apiKeyEncrypted: encrypted,
       apiKeyIv: iv,
       endpoint: data.endpoint || 'http://localhost/v1',

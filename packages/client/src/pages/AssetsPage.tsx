@@ -52,6 +52,7 @@ export function AssetsPage() {
   const [fileTypeFilter, setFileTypeFilter] = useState<string[]>([]);
   const [fileTypeDropdownOpen, setFileTypeDropdownOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [sourceTypeFilter, setSourceTypeFilter] = useState<'uploaded' | 'processed' | undefined>(undefined);
 
   // Preview state
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -143,6 +144,7 @@ export function AssetsPage() {
           search: searchText || undefined,
           page,
           pageSize: 20,
+          sourceType: sourceTypeFilter,
         });
         setAssets(result.items);
         setTotal(result.total);
@@ -155,7 +157,7 @@ export function AssetsPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedFolder, statusFilter, fileTypeFilter, searchText, page, folders]);
+  }, [selectedFolder, statusFilter, fileTypeFilter, searchText, page, folders, sourceTypeFilter]);
 
   useEffect(() => {
     fetchFolders();
@@ -903,6 +905,16 @@ export function AssetsPage() {
             ]}
             style={{ marginBottom: 0 }}
           />
+          <Select
+            value={sourceTypeFilter || 'all'}
+            onChange={(v) => { setSourceTypeFilter(v === 'all' ? undefined : v); setPage(1); }}
+            style={{ width: 130 }}
+            options={[
+              { label: '全部来源', value: 'all' },
+              { label: '上传文件', value: 'uploaded' },
+              { label: '处理结果', value: 'processed' },
+            ]}
+          />
           <Dropdown
             open={fileTypeDropdownOpen}
             onOpenChange={setFileTypeDropdownOpen}
@@ -1161,13 +1173,27 @@ export function AssetsPage() {
                         }
                       }}
                     >
-                      <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {asset.originalName}
+                      <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{asset.originalName}</span>
+                        {(asset.sourceAssetId || (asset as any).isProcessed) && (
+                          <Tag
+                            color="blue"
+                            style={{ fontSize: 10, lineHeight: '16px', padding: '0 4px', margin: 0, flexShrink: 0, cursor: 'default' }}
+                            title={asset.sourceAsset ? `来源于: ${asset.sourceAsset.originalName}` : '任务处理结果'}
+                          >
+                            处理结果
+                          </Tag>
+                        )}
                       </div>
                       <div style={{ fontSize: 11, color: '#5F6B80', display: 'flex', gap: 12, alignItems: 'center', whiteSpace: 'nowrap' }}>
                         <span style={{ flexShrink: 0 }}>{formatSize(asset.fileSize)}</span>
                         <span style={{ flexShrink: 0 }}>{formatTime(asset.createdAt)}</span>
                       </div>
+                      {asset.sourceAssetId && asset.sourceAsset && (
+                        <div style={{ fontSize: 10, color: '#9CA3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }}>
+                          来源: {asset.sourceAsset.originalName}
+                        </div>
+                      )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 0}}>
                       <Tag color={st.color}>{st.label}</Tag>

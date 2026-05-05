@@ -4,11 +4,11 @@ import * as taskService from '../services/task.service';
 export async function createTask(req: Request, res: Response) {
   try {
     const userId = (req as any).user.userId;
-    const { name, type, agentId, assetIds, prompt, cronExpression, inputs, sourceFields } = req.body;
+    const { name, type, agentId, assetIds, prompt, cronExpression, inputs, sourceFields, processingMode } = req.body;
     if (!name || !agentId || !assetIds?.length) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-    const task = await taskService.createTask(userId, { name, type, agentId, assetIds, prompt, cronExpression, inputs, sourceFields });
+    const task = await taskService.createTask(userId, { name, type, agentId, assetIds, prompt, cronExpression, inputs, sourceFields, processingMode });
     res.status(201).json(task);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
@@ -65,6 +65,17 @@ export async function toggleScheduled(req: Request, res: Response) {
     const { enabled } = req.body;
     const task = await taskService.toggleScheduledTask((req as any).user.userId, req.params.id, enabled);
     res.json(task);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+}
+
+export async function saveResultToAsset(req: Request, res: Response) {
+  try {
+    const { taskItemId } = req.body;
+    if (!taskItemId) return res.status(400).json({ error: 'Missing taskItemId' });
+    const asset = await taskService.saveTaskResultToAsset((req as any).user.userId, req.params.id, taskItemId);
+    res.json(asset);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }

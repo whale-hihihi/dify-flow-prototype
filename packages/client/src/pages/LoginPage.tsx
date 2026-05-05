@@ -28,8 +28,6 @@ export function LoginPage() {
       <div className="login-brand">
         <div className="login-brand-content">
           <img className="login-brand-logo" src="/nudt-logo-full.svg" alt="NUDT" />
-          <h1 className="login-brand-school">国防科技大学</h1>
-          <p className="login-brand-motto">厚德博学 · 强军兴国</p>
           <div className="login-xiaoxun-wrap">
             <div className="login-xiaoxun-left">
               <img src="/xiaoxun01.png" alt="厚德博学" />
@@ -45,8 +43,7 @@ export function LoginPage() {
       <div className="login-form-side">
         <div className="login-form-box">
           <div className="login-form-header">
-            <h2>Dify<span>Flow</span></h2>
-            <p>智能文本处理平台</p>
+            <img src="/project-logo.png" alt="Logo" style={{ height: 48, marginBottom: 4 }} />
           </div>
           <Form onFinish={onFinish} size="large">
             <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
