@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智能体生成器</title>
+<style>
+  :root {
+    --bg-base: #F5F6FA;
+    --bg-surface: #FFFFFF;
+    --bg-elevated: #F3F4F6;
+    --border: #E3E6ED;
+    --text-primary: #111827;
+    --text-secondary: #5F6B80;
+    --accent: #D97706;
+    --accent-hover: #B45309;
+    --accent-light: rgba(217,119,6,0.1);
+    --success: #059669;
+    --error: #DC2626;
+    --radius: 10px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; background: var(--bg-base); color: var(--text-primary); height: 100vh; display: flex; flex-direction: column; }
+
+  /* Header */
+  .header { height: 56px; background: var(--bg-surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 24px; flex-shrink: 0; }
+  .header h1 { font-size: 18px; font-weight: 600; }
+  .header .badge { margin-left: 12px; font-size: 12px; padding: 2px 8px; background: var(--accent-light); color: var(--accent); border-radius: 12px; }
+
+  /* Main layout */
+  .main { flex: 1; display: flex; overflow: hidden; }
+
+  /* Chat panel */
+  .chat-panel { flex: 1; display: flex; flex-direction: column; border-right: 1px solid var(--border); background: var(--bg-surface); min-width: 0; }
+  .chat-messages { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+  .chat-messages::-webkit-scrollbar { width: 6px; }
+  .chat-messages::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+
+  /* Messages */
+  .msg { display: flex; gap: 10px; max-width: 85%; animation: fadeIn 0.3s ease; }
+  .msg-ai { align-self: flex-start; }
+  .msg-user { align-self: flex-end; flex-direction: row-reverse; }
+  .msg-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .msg-ai .msg-avatar { background: var(--accent-light); }
+  .msg-user .msg-avatar { background: var(--accent); color: white; }
+  .msg-bubble { padding: 10px 14px; border-radius: 12px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+  .msg-ai .msg-bubble { background: var(--bg-elevated); border-top-left-radius: 4px; color: var(--text-primary); }
+  .msg-user .msg-bubble { background: var(--accent); color: white; border-top-right-radius: 4px; }
+  .msg-bubble strong { font-weight: 600; }
+
+  /* Option buttons */
+  .msg-options { display: flex; gap: 8px; margin-top: 10px; }
+  .opt-btn { padding: 6px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-primary); cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.15s; }
+  .opt-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+  .opt-btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+  .opt-btn.primary:hover { background: var(--accent-hover); }
+  .opt-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Loading */
+  .typing-dots { display: inline-flex; gap: 4px; padding: 4px 0; }
+  .typing-dots span { width: 6px; height: 6px; border-radius: 50%; background: #9CA3AF; animation: bounce 1.4s infinite both; }
+  .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Input area */
+  .chat-input-area { padding: 16px 24px; border-top: 1px solid var(--border); background: var(--bg-surface); display: flex; gap: 10px; align-items: flex-end; }
+  .chat-input { flex: 1; padding: 10px 14px; border: 1px solid var(--border); border-radius: 10px; font-size: 14px; outline: none; resize: none; min-height: 40px; max-height: 120px; font-family: inherit; line-height: 1.5; transition: border-color 0.15s; }
+  .chat-input:focus { border-color: var(--accent); }
+  .send-btn { padding: 10px 20px; background: var(--accent); color: white; border: none; border-radius: 10px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.15s; white-space: nowrap; }
+  .send-btn:hover { background: var(--accent-hover); }
+  .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* DSL panel */
+  .dsl-panel { width: 480px; flex-shrink: 0; display: flex; flex-direction: column; background: var(--bg-surface); }
+  .dsl-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .dsl-header .label { font-size: 14px; font-weight: 600; color: var(--text-secondary); }
+  .dsl-actions { display: flex; gap: 8px; }
+  .dsl-actions button { padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-secondary); font-size: 12px; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 4px; }
+  .dsl-actions button:hover { border-color: var(--accent); color: var(--accent); }
+  .dsl-output { flex: 1; overflow: auto; background: #1E1E2E; color: #CDD6F4; font-family: 'DM Mono', 'Fira Code', 'Consolas', 'Monaco', monospace; font-size: 12px; line-height: 1.7; padding: 16px; white-space: pre-wrap; word-break: break-all; }
+  .dsl-output::-webkit-scrollbar { width: 6px; }
+  .dsl-output::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+  .dsl-output .key { color: #F9E2AF; }
+  .dsl-output .str { color: #A6E3A1; }
+  .dsl-output .num { color: #FAB387; }
+  .dsl-output .bool { color: #89B4FA; }
+  .dsl-output .comment { color: #6C7086; font-style: italic; }
+  .dsl-empty { flex: 1; display: flex; align-items: center; justify-content: center; color: #6C7086; font-size: 14px; font-family: inherit; background: #1E1E2E; }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .main { flex-direction: column; }
+    .chat-panel { border-right: none; border-bottom: 1px solid var(--border); min-height: 50vh; }
+    .dsl-panel { width: 100%; min-height: 40vh; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>智能体生成器</h1>
+  <span class="badge">NLG → DSL</span>
+</div>
+
+<div class="main">
+  <!-- Chat Panel -->
+  <div class="chat-panel">
+    <div class="chat-messages" id="messages">
+      <div class="msg msg-ai">
+        <div class="msg-avatar">🤖</div>
+        <div class="msg-bubble">您好！我是智能体生成器。请用自然语言描述您想要的工作流，例如：<br><br>• 请为我生成一个抓取网页内容并提取关键情报的工作流<br>• 请为我生成一个客服分流工作流（退款/技术/一般）<br><br>我将为您生成可直接导入 Dify 的 DSL 文件。</div>
+      </div>
+    </div>
+    <div class="chat-input-area">
+      <textarea class="chat-input" id="input" placeholder="描述您想要的工作流..." rows="1"
+                onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}"></textarea>
+      <button class="send-btn" id="sendBtn" onclick="send()">发送</button>
+    </div>
+  </div>
+
+  <!-- DSL Panel -->
+  <div class="dsl-panel">
+    <div class="dsl-header">
+      <span class="label">生成的 DSL</span>
+      <div class="dsl-actions">
+        <button onclick="copyDSL()" id="copyBtn" title="复制">📋 复制</button>
+        <button onclick="downloadDSL()" id="dlBtn" title="下载">⬇ 下载 .yml</button>
+      </div>
+    </div>
+    <div class="dsl-output" id="dslOutput"><span class="dsl-empty">DSL 将在此处显示</span></div>
+  </div>
+</div>
+
+<script>
+let sessionId = '';
+let currentAction = '';
+let currentDSL = '';
+let loading = false;
+
+const messagesEl = document.getElementById('messages');
+const inputEl = document.getElementById('input');
+const sendBtn = document.getElementById('sendBtn');
+const dslOutputEl = document.getElementById('dslOutput');
+
+function addMessage(role, text, options) {
+  const div = document.createElement('div');
+  div.className = `msg msg-${role}`;
+
+  const avatar = document.createElement('div');
+  avatar.className = 'msg-avatar';
+  avatar.textContent = role === 'ai' ? '🤖' : '👤';
+  div.appendChild(avatar);
+
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  // Simple markdown-like bold
+  bubble.innerHTML = text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/```([\s\S]*?)```/g, '<code style="display:block;background:#E5E7EB;padding:8px;border-radius:6px;margin:4px 0;font-size:12px;white-space:pre-wrap;">$1</code>');
+  div.appendChild(bubble);
+
+  // Option buttons
+  if (options && options.length > 0) {
+    const optDiv = document.createElement('div');
+    optDiv.className = 'msg-options';
+    options.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.className = 'opt-btn' + (opt === 'confirm' ? ' primary' : '');
+      btn.textContent = opt === 'confirm' ? '✓ 确认' : '✎ 修改';
+      btn.onclick = () => handleOption(opt);
+      optDiv.appendChild(btn);
+    });
+    bubble.appendChild(optDiv);
+  }
+
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function addLoading() {
+  const div = document.createElement('div');
+  div.className = 'msg msg-ai';
+  div.id = 'loading-msg';
+
+  const avatar = document.createElement('div');
+  avatar.className = 'msg-avatar';
+  avatar.textContent = '🤖';
+  div.appendChild(avatar);
+
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+  div.appendChild(bubble);
+
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function removeLoading() {
+  const el = document.getElementById('loading-msg');
+  if (el) el.remove();
+}
+
+function setLoading(state) {
+  loading = state;
+  sendBtn.disabled = state;
+  inputEl.disabled = state;
+  if (state) {
+    addLoading();
+  } else {
+    removeLoading();
+  }
+}
+
+function showDSL(dsl) {
+  currentDSL = dsl;
+  dslOutputEl.textContent = '';
+  // Simple YAML syntax highlighting
+  const lines = dsl.split('\n');
+  lines.forEach((line, i) => {
+    const span = document.createElement('span');
+    span.style.display = 'block';
+    if (line.match(/^\s*#/)) {
+      span.className = 'comment';
+      span.textContent = line;
+    } else if (line.match(/^\s*-/) || line.match(/^\s*\w+:/)) {
+      const highlighted = line.replace(
+        /^(\s*)([\w.-]+)(:)(.*)/,
+        (m, ws, key, colon, rest) => {
+          let valClass = '';
+          if (rest.match(/^\s*$/)) valClass = '';
+          else if (rest.match(/^\s*true|false/i)) valClass = 'bool';
+          else if (rest.match(/^\s*\d+(\.\d+)?$/)) valClass = 'num';
+          else if (rest.match(/^\s*['"]/)) valClass = 'str';
+          else if (rest.match(/^\s*\|/)) valClass = '';
+          else valClass = 'str';
+          return `${ws}<span class="key">${key}</span>${colon}${valClass ? `<span class="${valClass}">${rest}</span>` : rest}`;
+        }
+      );
+      span.innerHTML = highlighted || line;
+    } else {
+      span.textContent = line;
+    }
+    dslOutputEl.appendChild(span);
+  });
+}
+
+function copyDSL() {
+  if (!currentDSL) return;
+  navigator.clipboard.writeText(currentDSL).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = '✓ 已复制';
+    setTimeout(() => btn.innerHTML = '📋 复制', 2000);
+  });
+}
+
+function downloadDSL() {
+  if (!currentDSL) return;
+  const blob = new Blob([currentDSL], { type: 'text/yaml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'workflow.dify.yml';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function handleOption(opt) {
+  if (opt === 'confirm') {
+    currentAction = 'confirm';
+    setLoading(true);
+    addMessage('user', '确认该规划');
+    sendToBackend('');
+  } else if (opt === 'modify') {
+    inputEl.placeholder = '请描述您想要修改的内容...';
+    inputEl.focus();
+    currentAction = 'modify';
+  }
+}
+
+async function send() {
+  const msg = inputEl.value.trim();
+  if (!msg || loading) return;
+  inputEl.value = '';
+  inputEl.style.height = 'auto';
+  addMessage('user', msg);
+  setLoading(true);
+  await sendToBackend(msg);
+}
+
+async function sendToBackend(msg) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 300000); // 5 min timeout
+    const resp = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: msg,
+        session_id: sessionId,
+        action: currentAction
+      }),
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    const data = await resp.json();
+    sessionId = data.session_id || sessionId;
+    currentAction = '';
+    inputEl.placeholder = '描述您想要的工作流...';
+    removeLoading();
+
+    if (data.reply) {
+      addMessage('ai', data.reply, data.options || []);
+    }
+    if (data.dsl) {
+      showDSL(data.dsl);
+    }
+    if (data.state === 'need_urls') {
+      inputEl.placeholder = '请提供 URL，格式：节点描述: https://...';
+    }
+  } catch (e) {
+    removeLoading();
+    if (e.name === 'AbortError') {
+      addMessage('ai', '请求超时，LLM 响应时间过长。请重试或简化您的需求描述。');
+    } else {
+      addMessage('ai', '请求失败: ' + e.message + '\n\n请确认后端服务正在运行（python web_app.py）');
+    }
+  }
+  setLoading(false);
+}
+
+// Auto-resize textarea
+inputEl.addEventListener('input', () => {
+  inputEl.style.height = 'auto';
+  inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+});
+</script>
+</body>
+</html>

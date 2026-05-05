@@ -1,27 +1,40 @@
 import { create } from 'zustand';
 
-interface GeneratorMessage {
+export interface GeneratorMessage {
   role: 'ai' | 'user';
   text: string;
+  options?: string[];
 }
 
 interface GeneratorState {
-  step: number;
+  sessionId: string;
   messages: GeneratorMessage[];
-  yamlOutput: string;
-  setStep: (step: number) => void;
+  dsl: string;
+  loading: boolean;
+  options: string[];
+  chatState: string;
+  setSessionId: (id: string) => void;
   addMessage: (msg: GeneratorMessage) => void;
-  setYamlOutput: (yaml: string) => void;
+  setDsl: (dsl: string) => void;
+  setLoading: (loading: boolean) => void;
+  setOptions: (options: string[]) => void;
+  setChatState: (state: string) => void;
   reset: () => void;
 }
 
 export const useGeneratorStore = create<GeneratorState>((set) => ({
-  step: -1,
+  sessionId: '',
   messages: [],
-  yamlOutput: '',
+  dsl: '',
+  loading: false,
+  options: [],
+  chatState: 'idle',
 
-  setStep: (step) => set({ step }),
+  setSessionId: (sessionId) => set({ sessionId }),
   addMessage: (msg) => set((s) => ({ messages: [...s.messages, msg] })),
-  setYamlOutput: (yamlOutput) => set({ yamlOutput }),
-  reset: () => set({ step: -1, messages: [], yamlOutput: '' }),
+  setDsl: (dsl) => set({ dsl }),
+  setLoading: (loading) => set({ loading }),
+  setOptions: (options) => set({ options }),
+  setChatState: (chatState) => set({ chatState }),
+  reset: () => set({ sessionId: '', messages: [], dsl: '', loading: false, options: [], chatState: 'idle' }),
 }));

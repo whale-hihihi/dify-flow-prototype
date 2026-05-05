@@ -4,22 +4,22 @@
 
 ## 项目概况
 
-DifyFlow 通过对接 Dify AI 平台，实现文件上传 → 智能体处理 → 结果归档的完整业务闭环。本项目为数据库课程设计，涵盖从需求分析到部署的完整开发流程。
+DifyFlow 通过对接 Dify AI 平台，实现文件上传 → 智能体处理 → 结果归档的完整业务闭环。支持即时任务与定时任务、自然语言生成 Dify 工作流 DSL。
 
-## 当前进度
+## 模块完成状态
 
-| 里程碑 | 状态 | 说明 |
-|--------|------|------|
-| M1 基础骨架 | 已完成 | 项目搭建、用户认证、Dify 连接配置、智能体 CRUD |
-| M2 文件处理 | 已完成 | 文件上传解析、文件夹管理、全文搜索、在线预览、下载 |
-| M3 任务管理 | 待开发 | 即时任务 + 定时任务(cron)、任务状态机、WebSocket 进度推送 |
-| M4 智能体生成器 | 待开发 | AI 引导式 5 步对话，自动生成 Dify DSL YAML |
-| M5 搜索与统计 | 待开发 | 前端搜索 UI、数据统计仪表板 |
-| M6 打包部署 | 待开发 | 一键安装包(.run/.deb)、Systemd 服务 |
+| 模块 | 状态 | 说明 |
+|------|------|------|
+| M1 资产管理 | 已完成 | 文件上传解析、文件夹管理、全文搜索、在线预览、下载 |
+| M2 任务管理 | 已完成 | 即时任务（批处理+分文件处理）、定时任务、WebSocket 进度推送、自动归档 |
+| M3 Dify 智能体管理 | 已完成 | 智能体 CRUD、连通测试、动态参数获取 |
+| M4 智能体生成器 | 已完成 | NLG→DSL 对话式生成器，LLM 管道自动生成 Dify 工作流 |
+| M5 个人设置 | 已完成 | Dify 连接配置、个人信息管理 |
+| M6 通用支撑 | 已完成 | 用户认证、侧栏布局、NUDT 视觉主题 |
 
 ---
 
-## 快速部署指南（从零开始）
+## 快速部署指南
 
 ### 环境要求
 
@@ -28,92 +28,74 @@ DifyFlow 通过对接 Dify AI 平台，实现文件上传 → 智能体处理 �
 | Node.js | 18+ | 运行前后端 |
 | npm | 9+ | 包管理器 |
 | Docker Desktop | 最新版 | 运行 PostgreSQL 数据库 |
-| Git | 最新版 | 版本管理（可选） |
-
-> **注意**：以下所有命令在项目根目录（`DifyFlow/`）下执行。
+| Python | 3.10+ | NLG→DSL 生成器（M4模块） |
 
 ### 第 1 步：启动 PostgreSQL 数据库
 
-确保 Docker Desktop 已启动，然后在项目根目录运行：
+确保 Docker Desktop 已启动，在项目根目录运行：
 
 ```bash
 docker compose up -d
 ```
 
-数据库默认运行在 `localhost:15432`，用户名 `difyflow`，密码 `password`。
-
-验证是否启动成功：
-
-```bash
-docker compose ps
-```
-
-应看到 `difyflow-postgres` 状态为 `running`。
+数据库运行在 `localhost:15432`，用户名 `difyflow`，密码 `password`。
 
 ### 第 2 步：配置环境变量
-
-项目根目录已包含 `.env.example` 模板文件。复制为 `.env`：
 
 ```bash
 cp .env.example .env
 ```
 
-> **Windows 用户**：直接复制 `.env.example` 文件并重命名为 `.env` 即可。文件内容无需修改，默认值已可直接用于开发。
-
-`.env` 内容如下（如需修改可自行调整）：
-
-```env
-DATABASE_URL="postgresql://difyflow:password@localhost:15432/difyflow"
-JWT_SECRET="change-me-to-a-random-64-character-string"
-ENCRYPTION_KEY="change-me-to-a-64-char-hex-string-32-bytes"
-PORT=3001
-UPLOAD_DIR="./uploads"
-MAX_FILE_SIZE=52428800
-```
+`.env` 默认内容可直接用于开发，无需修改。
 
 ### 第 3 步：安装依赖
 
 ```bash
+# Node.js 依赖（根 + server + client）
 npm install
-```
 
-这会自动安装根目录、`packages/server`、`packages/client` 三个位置的依赖（npm workspaces）。
+# Python 生成器依赖（M4 模块需要）
+pip install fastapi pydantic pyyaml uvicorn httpx jinja2 eval_type_backport
+```
 
 ### 第 4 步：初始化数据库
 
 ```bash
-# 执行数据库迁移（创建所有表）
 npm run db:migrate
-
-# 填充种子数据（创建 admin 用户 + 默认文件夹）
 npm run db:seed
 ```
 
-> 数据库迁移会在 `packages/server/prisma/migrations/` 下记录版本。如果后续有人修改了 `schema.prisma`，再次运行 `npm run db:migrate` 即可增量更新。
-
 ### 第 5 步：启动项目
 
-需要**开两个终端**分别启动前后端：
+需要开**三个终端**：
 
-**终端 1 — 启动后端**（端口 3001）：
+**终端 1 — 后端**（端口 3001）：
 
 ```bash
 npm run dev:server
 ```
 
-**终端 2 — 启动前端**（端口 5173）：
+**终端 2 — 前端**（端口 5174）：
 
 ```bash
 npm run dev:client
 ```
 
-看到以下输出说明启动成功：
-- 后端：`DifyFlow server running on http://localhost:3001`
-- 前端：`Local: http://localhost:5173/`
+**终端 3 — NLG→DSL 生成器**（端口 5000，M4 模块需要）：
+
+```bash
+cd nlg-to-dsl && python web_app.py
+```
+
+或者一条命令启动前后端：
+
+```bash
+npm run dev
+```
 
 ### 第 6 步：访问系统
 
-- 地址：`http://localhost:5173`
+- 地址：`http://localhost:5174`
 - 账号：`admin`
 - 密码：`admin123`
 
@@ -123,10 +105,11 @@ npm run dev:client
 
 ```
 后端:  Node.js 18+ / Express / TypeScript / Prisma / PostgreSQL 15
-前端:  React 19 / Vite 8 / Ant Design 5 / Zustand / React Router 7
+前端:  React 19 / Vite 5 / Ant Design 5 / Zustand / React Router 6
 实时:  WebSocket (ws)
 安全:  JWT / bcrypt / AES-256-GCM
-工具:  pdf-parse / mammoth / xlsx / csv-parse
+解析:  pdf-parse / mammoth / xlsx / csv-parse
+AI:    Python FastAPI / SiliconFlow (Qwen3.6-35B-A3B) / LLM 管道
 ```
 
 ## 项目结构
@@ -134,33 +117,40 @@ npm run dev:client
 ```
 difyflow/
 ├── packages/
-│   ├── server/                  # Express 后端
+│   ├── server/                       # Express 后端
 │   │   ├── prisma/
-│   │   │   ├── schema.prisma    # 数据库模型 (User, Agent, Folder, Asset, DifyConfig)
-│   │   │   ├── seed.ts          # 种子数据 (admin/admin123)
-│   │   │   └── migrations/      # 数据库迁移
+│   │   │   ├── schema.prisma         # 数据模型
+│   │   │   ├── seed.ts               # 种子数据
+│   │   │   └── migrations/
 │   │   └── src/
-│   │       ├── controllers/     # auth, agent, asset, folder, dify-config, search
-│   │       ├── services/        # 业务逻辑层
-│   │       ├── routes/          # API 路由
-│   │       ├── middleware/      # JWT认证, 文件上传, Zod校验
-│   │       ├── parsers/         # 6种文件解析器 + 工厂模式
-│   │       ├── workers/         # 异步解析队列
-│   │       ├── ws/              # WebSocket 管理
-│   │       └── utils/           # 加密, JWT, 文件工具
-│   └── client/                  # React 前端
+│   │       ├── controllers/          # 路由控制器
+│   │       ├── services/             # 业务逻辑
+│   │       ├── routes/               # API 路由 + Python 代理
+│   │       ├── middleware/           # JWT / 上传 / 校验
+│   │       ├── parsers/              # 6种文件解析器
+│   │       ├── workers/              # 异步解析队列
+│   │       ├── ws/                   # WebSocket
+│   │       └── utils/                # 加密 / JWT / 文件工具
+│   └── client/                       # React 前端
 │       └── src/
-│           ├── pages/           # LoginPage, AssetsPage, AgentsPage, SettingsPage
-│           ├── api/             # API 客户端 (axios + 拦截器)
-│           ├── stores/          # Zustand 状态管理
-│           ├── hooks/           # WebSocket hook
-│           └── layouts/         # 侧栏布局
-├── dify-flow-prototype/         # HTML/CSS/JS 前端原型（设计参考）
-├── test-files/                  # 测试用文件（6种格式各一份）
-├── docker-compose.yml           # PostgreSQL 容器
-├── init-db.sql                  # 数据库扩展 (pg_trgm, uuid-ossp)
-├── PROGRESS.md                  # 开发进度记录
-└── CLAUDE.md                    # AI 辅助开发指引
+│           ├── pages/                # LoginPage, AssetsPage, AgentsPage, TasksPage, GeneratorPage, SettingsPage
+│           ├── api/                  # API 调用层
+│           ├── stores/               # Zustand 状态管理
+│           ├── hooks/                # 自定义 Hooks
+│           ├── layouts/              # 侧栏布局
+│           ├── styles/               # 全局样式 + NUDT 主题
+│           └── router/               # 路由配置
+├── nlg-to-dsl/                       # NLG→DSL Python 生成器
+│   ├── web_app.py                    # FastAPI 后端 (端口 5000)
+│   ├── nlg_to_dsl_test.py            # LLM 管道核心
+│   ├── dify-dsl-builder/             # DSL 构建器库
+│   └── static/                       # 原版前端（参考）
+├── dify-flow-prototype/              # 原型设计稿（HTML/CSS/JS）
+├── dsl-templates/                    # DSL 模板
+├── docker-compose.yml                # PostgreSQL 容器
+├── init-db.sql                       # 数据库扩展
+├── PROGRESS.md                       # 开发进度记录
+└── CLAUDE.md                         # AI 辅助开发指引
 ```
 
 ## API 端点总览
@@ -180,55 +170,36 @@ difyflow/
 | POST | `/api/agents/:id/test` | 连通测试 |
 | POST | `/api/assets/upload` | 上传文件 |
 | GET | `/api/assets` | 文件列表(分页+筛选) |
-| GET | `/api/assets/:id` | 文件详情（含解析文本） |
+| GET | `/api/assets/:id` | 文件详情 |
 | GET | `/api/assets/:id/download` | 下载文件 |
 | DELETE | `/api/assets/:id` | 删除文件 |
 | GET | `/api/folders` | 文件夹列表 |
 | POST | `/api/folders` | 创建文件夹 |
 | PUT | `/api/folders/:id` | 重命名文件夹 |
 | DELETE | `/api/folders/:id` | 删除文件夹 |
+| GET/POST | `/api/tasks` | 任务列表 / 创建任务 |
+| GET/PUT/DELETE | `/api/tasks/:id` | 任务详情 / 更新 / 删除 |
+| POST | `/api/tasks/:id/execute` | 执行任务 |
 | GET | `/api/search?q=&type=` | 全文搜索 |
-
-## 数据库 ER 图
-
-```
-┌──────────┐     ┌───────────────┐     ┌──────────┐
-│  users   │────<│  dify_configs │     │  agents  │
-│──────────│     └───────────────┘     │──────────│
-│ id (PK)  │────<│ id (PK)       │     │ id (PK)  │
-│ username │     │ dify_url      │     │ name     │
-│ email    │     │ conn_status   │     │ mode     │
-│ password │     │ user_id (FK)  │     │ api_key  │
-│ role     │     └───────────────┘     │ user_id  │
-└────┬─────┘                           └──────────┘
-     │
-     │         ┌──────────┐     ┌──────────┐
-     ├────────<│ folders  │     │  assets  │
-     │         │──────────│────<│──────────│
-     │         │ id (PK)  │     │ id (PK)  │
-     │         │ name     │     │ filename │
-     │         │ is_default│    │ file_type│
-     │         │ user_id  │     │ status   │
-     │         └──────────┘     │ parsed   │
-     │                          │ folder_id│
-     └────────────────────────<│ user_id  │
-                                └──────────┘
-```
+| POST | `/api/generator/chat` | NLG→DSL 对话 |
+| GET | `/api/generator/dsl/:sessionId` | 获取生成的 DSL |
 
 ## 常用开发命令
 
 ```bash
-npm install          # 安装全部依赖（根 + server + client）
-npm run dev:server   # 仅启动后端（端口 3001，自动热重载）
-npm run dev:client   # 仅启动前端（端口 5173，自动热重载）
-npm run db:migrate   # 运行数据库迁移（修改 schema.prisma 后执行）
-npm run db:seed      # 填充种子数据（admin/admin123 + 默认文件夹）
+npm install          # 安装全部依赖
+npm run dev          # 同时启动前后端
+npm run dev:server   # 仅启动后端 (端口 3001)
+npm run dev:client   # 仅启动前端 (端口 5174)
+npm run db:migrate   # 数据库迁移
+npm run db:seed      # 填充种子数据
 ```
 
-## 给后续开发者的注意事项
+## 注意事项
 
-1. **数据库变更**：修改 `packages/server/prisma/schema.prisma` 后，必须运行 `npm run db:migrate` 生成迁移文件，并将迁移文件一并提交
-2. **环境变量**：`.env` 不应提交到版本控制，团队成员需各自从 `.env.example` 复制
-3. **原型参考**：`dify-flow-prototype/` 是 UI 设计稿，新功能的视觉和交互应尽量还原
-4. **计划书**：`DifyFlow智能文本处理系统计划书.docx` 是需求来源，开发前务必先阅读对应章节
-5. **进度记录**：每完成一个功能模块，请更新 `PROGRESS.md`
+1. **数据库变更**：修改 `schema.prisma` 后必须运行 `npm run db:migrate`
+2. **环境变量**：`.env` 不提交到版本控制，从 `.env.example` 复制
+3. **原型参考**：`dify-flow-prototype/` 是 UI 设计稿
+4. **计划书**：`DifyFlow智能文本处理系统计划书.docx` 是需求来源
+5. **进度记录**：每完成一个功能模块更新 `PROGRESS.md`
+6. **生成器**：M4 模块需要单独启动 Python 后端（`cd nlg-to-dsl && python web_app.py`）
